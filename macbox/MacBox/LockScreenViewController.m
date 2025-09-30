@@ -90,6 +90,7 @@
 
 @property (weak) IBOutlet NSTextField *textFieldDatabaseNickName;
 @property HardwareKeyMenuHelper* hardwareKeyMenuHelper;
+@property (weak) IBOutlet NSButton *buttonSwitchToPinMode;
 
 @end
 
@@ -406,8 +407,8 @@
 
 - (void)bindUnlockButtons {
     [self bindBiometricButtonOnLockScreen];
-
     [self bindManualUnlockButtonFast];
+    [self bindPinButton];
 }
 
 - (void)bindTitlesAndBioAvailability {
@@ -631,6 +632,10 @@
 
 
 
+
+- (IBAction)showPinField:(id)sender {
+    [SimplePinModal showFrom:self delegate:self];
+}
 
 - (IBAction)onViewAllDatabases:(id)sender {
     [DBManagerPanel.sharedInstance show];
@@ -1195,6 +1200,60 @@ alertOnJustPwdWrong:(BOOL)alertOnJustPwdWrong
     return [MacCompositeKeyDeterminer bioOrWatchUnlockIsPossible:self.databaseMetadata isAutoFillOpen:NO];
 }
 
+- (BOOL)pinUnlockIsPossible {
+    NSString* pin = self.databaseMetadata.conveniencePin;
+    return pin != nil && pin.length > 0;
+}
+
+- (BOOL)isPinUnlockAttempt:(NSString*)inputText {
+    if (![self pinUnlockIsPossible]) {
+        return NO;
+    }
+
+    NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
+    BOOL isNumeric = [inputText rangeOfCharacterFromSet:nonDigits].location == NSNotFound;
+    BOOL isReasonableLength = inputText.length >= 4 && inputText.length <= 12;
+    
+    return isNumeric && isReasonableLength;
+}
+
+- (BOOL)validatePinUnlock:(NSString*)enteredPin {
+    if (![self pinUnlockIsPossible]) {
+        return NO;
+    }
+    
+    NSString* storedPin = self.databaseMetadata.conveniencePin;
+    return [enteredPin isEqualToString:storedPin];
+}
+
+- (void)attemptPinUnlock:(NSString*)enteredPin {
+    if (![self validatePinUnlock:enteredPin]) {
+        
+        self.textFieldMasterPassword.stringValue = @"";
+        [self showIncorrectPasswordToast];
+        return;
+    }
+
+    NSString* uuid = self.databaseMetadata.uuid;
+    MacCompositeKeyDeterminer *determiner = [MacCompositeKeyDeterminer determinerWithDatabase:self.databaseMetadata
+                                                             isNativeAutoFillAppExtensionOpen:NO
+                                                                      isAutoFillQuickTypeOpen:NO
+                                                                            onDemandUiProvider:^NSViewController * {
+        return [LockScreenViewController getAppropriateOnDemandViewController:uuid];
+    }];
+    
+    NSString* keyFileBookmark = self.selectedKeyFileBookmark;
+    NSURL* keyFileFallbackUrl = self.selectedKeyFileUrl;
+    YubiKeyConfiguration* yubiKeyConfiguration = self.hardwareKeyMenuHelper.selectedConfiguration;
+
+    [determiner getCkfsAfterSuccessfulBiometricAuth:keyFileBookmark
+                               yubiKeyConfiguration:yubiKeyConfiguration
+                                 keyFileFallbackUrl:keyFileFallbackUrl
+                                         completion:^(GetCompositeKeyResult result, CompositeKeyFactors * _Nullable factors, BOOL fromConvenience, NSError * _Nullable error) {
+        [self handleGetCkfsResult:result factors:factors fromConvenience:fromConvenience error:error];
+    }];
+}
+
 - (void)resetEmbeddedTouchID {
     self.dummyEmbeddedTouchIDImageView.hidden = YES; 
     
@@ -1327,6 +1386,30 @@ alertOnJustPwdWrong:(BOOL)alertOnJustPwdWrong
     
     self.textFieldError.stringValue = error ? error.localizedDescription : @"";
     self.textFieldError.hidden = error == nil;
+}
+
+- (void)bindPinButton {
+    BOOL onboardingInitiated = self.databaseMetadata.hasPromptedForTouchIdEnrol;
+    BOOL pinEnabled = [self pinUnlockIsPossible];
+    self.buttonSwitchToPinMode.hidden = !onboardingInitiated || !pinEnabled;
+}
+
+@end
+
+@interface LockScreenViewController (SimplePinModalDelegate)
+- (void)simplePinModalDidSubmitPin:(NSString *)pin;
+- (void)simplePinModalDidCancel;
+@end
+
+@implementation LockScreenViewController (SimplePinModalDelegate)
+
+- (void)simplePinModalDidSubmitPin:(NSString *)pin {
+    self.textFieldMasterPassword.stringValue = @"";
+    [self attemptPinUnlock:pin];
+}
+
+- (void)simplePinModalDidCancel {
+    slog(@"PIN modal was cancelled by user");
 }
 
 @end

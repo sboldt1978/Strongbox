@@ -24,6 +24,13 @@ class DetailsViewField {
         case auditIssue
         case keeAgentKeySummary
         case keeAgentKey
+        case creditCardNumber
+        case creditCardCvv
+        case creditCardPin
+        case creditCardCardholder
+        case creditCardType
+        case creditCardValidFrom
+        case creditCardLimit
     }
 
     var name: String = ""

@@ -276,6 +276,23 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
     
     if ( confirm != nil && [confirm localizedCaseInsensitiveCompare:codeword] == NSOrderedSame ) {
         [self removeDatabases:selected];
+    } else {
+        NSString* alertTitle = NSLocalizedString(@"delete_triple_confirm_code_word_incorrect_title", @"Incorrect");
+        NSString* alertMessage = [NSString stringWithFormat:NSLocalizedString(@"delete_triple_confirm_code_word_incorrect_message", @"Incorrect entry. Please type the word '%@' to confirm."), codeword];
+        NSString* alertRetry = NSLocalizedString(@"generic_try_again", @"Try Again");
+        NSString* alertCancel = NSLocalizedString(@"generic_cancel", @"Cancel");
+        
+        [MacAlerts twoOptions:alertTitle
+              informativeText:alertMessage
+            option1AndDefault:alertRetry
+                      option2:alertCancel
+                       window:self.view.window
+                   completion:^(NSUInteger response) {
+            if ( response == 1 ) {
+                [self.presentingViewController dismissViewController:self];
+                [self tripleCheckCloudKitDelete:selected];
+            }
+        }];
     }
 }
 

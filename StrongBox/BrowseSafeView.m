@@ -536,6 +536,13 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
         [weakSelf onAddEntry];
     }]];
     
+    [ma0 addObject:[ContextMenuHelper getItem:@"New Credit Card Entry"
+                                  systemImage:@"creditcard"
+                                      enabled:!ro
+                                      handler:^(__kindof UIAction * _Nonnull action) {
+        [weakSelf onAddCreditCardEntry];
+    }]];
+    
     if ( self.viewType == kBrowseViewTypeHierarchy ) {
         [ma0 addObject:[ContextMenuHelper getItem:NSLocalizedString(@"browse_context_menu_new_group", @"New Group")
                                       systemImage:@"folder.badge.plus" enabled:!ro
@@ -2113,10 +2120,18 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
     [self createNewEntry];
 }
 
+- (void)onAddCreditCardEntry {
+    [self createCreditCardEntry];
+}
+
 
 
 - (void)createNewEntry {
     [self showEntry:nil editImmediately:YES];
+}
+
+- (void)createCreditCardEntry {
+    [self showCreditCardEntry];
 }
 
 - (void)editEntry:(Node*)item {
@@ -2144,6 +2159,12 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
 }
 
 - (void)showEntry:(Node*)item editImmediately:(BOOL)editImmediately animated:(BOOL)animated {
+    
+    if (item && [self isCreditCardItem:item]) {
+        [self showCreditCardEntry:item editImmediately:editImmediately animated:animated];
+        return;
+    }
+    
     NSString* segueName = animated ? @"segueMasterDetailToDetail" : @"segueMasterDetailToDetail-NonAnimated";
     
     if ( item ) {
@@ -2162,6 +2183,22 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
             [self performSegueWithIdentifier:@"segueMasterDetailToEmptyDetail" sender:nil];
         }
     }
+}
+
+
+- (BOOL)isCreditCardItem:(Node*)item {
+    if (!item || item.isGroup) {
+        return NO;
+    }
+    
+    
+    MutableOrderedDictionary* customFields = item.fields.customFields;
+    BOOL hasCardholderName = [customFields objectForKey:@"CardholderName"] != nil;
+    BOOL hasCardNumber = [customFields objectForKey:@"CardNumber"] != nil;
+    BOOL hasCardType = [customFields objectForKey:@"CardType"] != nil;
+    
+    
+    return hasCardholderName && hasCardNumber;
 }
 
 - (IBAction)onMove:(id)sender {
@@ -3711,6 +3748,54 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
             completion(savedWorkingCopy);
         }
     }];
+}
+
+
+
+- (void)showCreditCardEntry {
+    [self showCreditCardEntry:nil editImmediately:YES animated:YES];
+}
+
+- (void)showCreditCardEntry:(Node*)item editImmediately:(BOOL)editImmediately animated:(BOOL)animated {
+    
+    __weak BrowseSafeView* weakSelf = self;
+    
+    
+    UIViewController* vc = [SwiftUIViewFactory getCreditCardEditorViewWithModel:self.viewModel
+                                                                         itemId:item ? item.uuid : nil
+                                                                  parentGroupId:item ? item.parent.uuid : self.currentGroupId
+                                                                  createNewItem:item == nil
+                                                                editImmediately:editImmediately
+                                                                 forcedReadOnly:self.viewModel.isReadOnly
+                                                                     completion:^(BOOL saved) {
+        
+        if (saved) {
+            [weakSelf updateAndRefresh];
+        }
+    }];
+    
+    if ( item ) {
+        self.viewModel.metadata.lastViewedEntry = item.uuid;
+    }
+    
+    
+    if ( self.splitViewController.isCollapsed ) {
+        
+        [self.navigationController pushViewController:vc animated:animated];
+    }
+    else {
+        
+        if ( item || editImmediately ) {
+            
+            UINavigationController* nav = [[UINavigationController alloc] initWithRootViewController:vc];
+            [self.splitViewController showDetailViewController:nav sender:self];
+        }
+        else {
+            
+            self.viewModel.metadata.lastViewedEntry = nil;
+            [self performSegueWithIdentifier:@"segueMasterDetailToEmptyDetail" sender:nil];
+        }
+    }
 }
 
 @end

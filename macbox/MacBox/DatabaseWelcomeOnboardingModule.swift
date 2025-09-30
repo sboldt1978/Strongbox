@@ -53,19 +53,31 @@ class DatabaseWelcomeOnboardingModule: OnboardingModule {
         welcomeVc.showAutoFill = showAutoFill
         welcomeVc.enableAutoFill = !hasAutoFillDatabase
 
-        welcomeVc.onNext = { [weak self] userCancelled, enableTouchID, enableAutoFill in
+        welcomeVc.onNext = {
+            [weak self] userCancelled,
+            enableTouchID,
+            enableAutoFill,
+            pin in
             guard let self else { return }
-
+            
             let enableTouchID = showTouchId && enableTouchID
             let enableAutoFill = showAutoFill && enableAutoFill
-
-            onWelcomeDone(userCancelled: userCancelled, shouldSetTouchID: showTouchId, enableTouchID: enableTouchID, shouldSetAutoFill: showAutoFill, enableAutoFill: enableAutoFill, completion: completion)
+            
+            onWelcomeDone(
+                userCancelled: userCancelled,
+                shouldSetTouchID: showTouchId,
+                enableTouchID: enableTouchID,
+                shouldSetAutoFill: showAutoFill,
+                enableAutoFill: enableAutoFill,
+                pin: pin,
+                completion: completion
+            )
         }
 
         return welcomeVc
     }
 
-    func onWelcomeDone(userCancelled: Bool, shouldSetTouchID: Bool, enableTouchID: Bool, shouldSetAutoFill: Bool, enableAutoFill: Bool, completion: @escaping (() -> Void)) {
+    func onWelcomeDone(userCancelled: Bool, shouldSetTouchID: Bool, enableTouchID: Bool, shouldSetAutoFill: Bool, enableAutoFill: Bool, pin: String?, completion: @escaping (() -> Void)) {
         if userCancelled {
             completion()
             return
@@ -99,6 +111,13 @@ class DatabaseWelcomeOnboardingModule: OnboardingModule {
             viewModel.rebuildMapsAndCaches()
 
             model.metadata.hasPromptedForAutoFillEnrol = true
+        }
+
+        if let pin = pin, !pin.isEmpty {
+            model.metadata.conveniencePin = pin
+            model.metadata.conveniencePasswordHasBeenStored = true
+            model.metadata.conveniencePassword = model.ckfs.password
+            model.metadata.hasPromptedForTouchIdEnrol = true
         }
 
         completion()

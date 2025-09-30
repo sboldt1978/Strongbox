@@ -1105,13 +1105,34 @@ extension SideBarViewController: NSOutlineViewDelegate {
                 return
             }
 
-            let vc = CreateEditViewController.instantiateFromStoryboard()
-
-            vc.initialNodeId = uuid
-            vc.database = database
-
-            splitViewController.presentAsSheet(vc)
+            guard let node = database.getItemBy(uuid) else {
+                swlog("🔴 Could not find entry with UUID: \(uuid)")
+                return
+            }
+            
+            if isCreditCardEntry(node) {
+                let vc = CreateEditCreditCardViewController.instantiateFromStoryboard()
+                vc.initialNodeId = uuid
+                vc.database = database
+                splitViewController.presentAsSheet(vc)
+            } else {
+                let vc = CreateEditViewController.instantiateFromStoryboard()
+                vc.initialNodeId = uuid
+                vc.database = database
+                splitViewController.presentAsSheet(vc)
+            }
         }
+    }
+    
+    private func isCreditCardEntry(_ node: Node) -> Bool {
+        let customFields = node.fields.customFields
+        let creditCardFields = ["CVV", "PIN", "Credit Limit", "Card Type"]
+        
+        let foundFields = creditCardFields.filter { fieldName in
+            customFields[fieldName as NSString] != nil
+        }
+        
+        return foundFields.count >= 2
     }
 
     func outlineViewSelectionDidChange(_: Notification) {

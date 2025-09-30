@@ -1189,6 +1189,19 @@ static NSString* const kPrintingStylesheet = @"<head><style type=\"text/css\"> \
                 continue;
             }
             
+            
+            
+            for ( NSString* tag in node.fields.tags ) {
+                NSMutableSet<NSUUID*>* set = tagMap[tag];
+                
+                if ( set == nil ) {
+                    tagMap[tag] = NSMutableSet.set;
+                    set = tagMap[tag];
+                }
+                
+                [set addObject:node.uuid];
+            }
+            
             if ( self.format == kKeePass || self.format == kKeePass4 ) {
                 if ( !node.isSearchable ) {
                     continue;
@@ -1229,19 +1242,6 @@ static NSString* const kPrintingStylesheet = @"<head><style type=\"text/css\"> \
             
             if ( node.fields.otpToken != nil ) {
                 [totpSet addObject:node.uuid];
-            }
-            
-            
-            
-            for ( NSString* tag in node.fields.tags ) {
-                NSMutableSet<NSUUID*>* set = tagMap[tag];
-                
-                if ( set == nil ) {
-                    tagMap[tag] = NSMutableSet.set;
-                    set = tagMap[tag];
-                }
-                
-                [set addObject:node.uuid];
             }
             
             

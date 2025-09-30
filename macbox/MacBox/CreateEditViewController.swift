@@ -93,40 +93,6 @@ class CreateEditViewController: NSViewController, NSWindowDelegate, NSToolbarDel
     @IBOutlet var buttonNewEntryDefaults: NSButton!
     @IBOutlet var buttonHistory: NSPopUpButton!
 
-
-
-
-
-
-    
-    
-    
-    
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     override func viewDidLoad() {
         super.viewDidLoad()
 

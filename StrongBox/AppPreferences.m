@@ -795,20 +795,28 @@ static NSString* const kShowInteractiveAppleWatchSyncGuide = @"showInteractiveAp
 }
 
 - (NSData *)lastKnownGoodBiometricsDatabaseState {
-    return [self.sharedAppGroupDefaults objectForKey:kLastKnownGoodDatabaseState];
+    NSString* bundleId = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    NSString* key = [NSString stringWithFormat:@"%@.%@", kLastKnownGoodDatabaseState, bundleId];
+    return [self.sharedAppGroupDefaults objectForKey:key];
 }
 
 - (void)setLastKnownGoodBiometricsDatabaseState:(NSData *)lastKnownGoodBiometricsDatabaseState {
-    [self.sharedAppGroupDefaults setObject:lastKnownGoodBiometricsDatabaseState forKey:kLastKnownGoodDatabaseState];
+    NSString* bundleId = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    NSString* key = [NSString stringWithFormat:@"%@.%@", kLastKnownGoodDatabaseState, bundleId];
+    [self.sharedAppGroupDefaults setObject:lastKnownGoodBiometricsDatabaseState forKey:key];
     [self.sharedAppGroupDefaults synchronize];
 }
 
 - (NSData *)autoFillLastKnownGoodBiometricsDatabaseState {
-    return [self.sharedAppGroupDefaults objectForKey:kAutoFillLastKnownGoodDatabaseState];
+    NSString* bundleId = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    NSString* key = [NSString stringWithFormat:@"%@.%@", kAutoFillLastKnownGoodDatabaseState, bundleId];
+    return [self.sharedAppGroupDefaults objectForKey:key];
 }
 
 - (void)setAutoFillLastKnownGoodBiometricsDatabaseState:(NSData *)autoFillLastKnownGoodBiometricsDatabaseState {
-    [self.sharedAppGroupDefaults setObject:autoFillLastKnownGoodBiometricsDatabaseState forKey:kAutoFillLastKnownGoodDatabaseState];
+    NSString* bundleId = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    NSString* key = [NSString stringWithFormat:@"%@.%@", kAutoFillLastKnownGoodDatabaseState, bundleId];
+    [self.sharedAppGroupDefaults setObject:autoFillLastKnownGoodBiometricsDatabaseState forKey:key];
     [self.sharedAppGroupDefaults synchronize];
 }
 

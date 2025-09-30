@@ -1806,6 +1806,24 @@ explicitManualUnlock:(BOOL)explicitManualUnlock
                            completion:^(NSString *confirm, BOOL response) {
             if ( response && confirm != nil && [confirm localizedCaseInsensitiveCompare:codeword] == NSOrderedSame ) {
                 [self removeAndCleanupSafeConfirmed:safe];
+            } else {
+                NSString* alertTitle = NSLocalizedString(@"delete_triple_confirm_code_word_incorrect_title", @"Incorrect");
+                NSString* alertMessage = [NSString stringWithFormat:NSLocalizedString(@"delete_triple_confirm_code_word_incorrect_message", @"Incorrect entry. Please type the word '%@' to confirm."), codeword];
+                NSString* alertRetry = NSLocalizedString(@"generic_try_again", @"Try Again");
+                NSString* alertCancel = NSLocalizedString(@"generic_cancel", @"Cancel");
+                
+                [Alerts twoOptions:self
+                             title:alertTitle
+                           message:alertMessage
+                 defaultButtonText:alertRetry
+                  secondButtonText:alertCancel
+                        completion:^(BOOL response) {
+                    [self dismissViewControllerAnimated:YES completion:^{
+                        if ( response ) {
+                            [self removeAndCleanupSafe:safe];
+                        }
+                    }];
+                }];
             }
         }];
     }

@@ -156,6 +156,14 @@ static NSString* const kTwoFactorHideCountdownDigits = @"twoFactorHideCountdownD
 static NSString* const kShowOfflineOptionsOnLocalDeviceDatabases = @"showOfflineOptionsOnLocalDeviceDatabases";
 
 
+static NSString* const kAppLockMode = @"appLockMode2.0";
+static NSString* const kAppLockPin = @"appLockPin2.0";
+static NSString* const kAppLockDelay = @"appLockDelay2.0";
+static NSString* const kAppLockAppliesToPreferences = @"appLockAppliesToPreferences";
+static NSString* const kDeleteDataAfterFailedUnlockCount = @"deleteDataAfterFailedUnlockCount";
+static NSString* const kFailedUnlockAttempts = @"failedUnlockAttempts";
+
+
 
 @interface Settings ()
 

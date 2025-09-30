@@ -106,6 +106,8 @@
     NSTabViewItem* auditItem = self.tabViewItems[4];
     NSTabViewItem* encryption = self.tabViewItems[5];
     NSTabViewItem* advanced = self.tabViewItems[6];
+ 
+    [self updateConvenienceUnlockTab:convenienceUnlockItem];
 
     GeneralDatabaseSettings* general = (GeneralDatabaseSettings*)generalItem.viewController;
     general.model = self.viewModel;
@@ -163,6 +165,18 @@
     }
     
     self.selectedTabViewItemIndex = self.initialTab;
+}
+
+- (void)updateConvenienceUnlockTab:(NSTabViewItem*)convenienceUnlockItem {
+    BOOL pinEnabled = self.viewModel.databaseMetadata.conveniencePin != nil;
+    
+    if (pinEnabled) {
+        convenienceUnlockItem.label = NSLocalizedString(@"pin_code_tab_title", @"Pin Code");
+        convenienceUnlockItem.image = [NSImage imageNamed:@"keypad"];
+    } else {
+        convenienceUnlockItem.label = NSLocalizedString(@"touchid_tab_title", @"Touch ID");
+        convenienceUnlockItem.image = [NSImage imageWithSystemSymbolName:@"touchid" accessibilityDescription:@"Touch ID"];
+    }
 }
 
 @end

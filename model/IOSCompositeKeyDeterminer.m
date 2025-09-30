@@ -398,7 +398,7 @@ static const int kMaxFailedPinAttempts = 3;
                 }];
             });
         }
-        else if (error.code == LAErrorUserFallback) {
+        else if (error.code == LAErrorUserFallback || error.code == LAErrorSystemCancel) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [self promptForManualCredentials];
             });

@@ -121,19 +121,25 @@
     }
 
     NSError *error;
-    [localAuthContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error];
-    
-    if (error) {
+    BOOL canEval = [localAuthContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error];
+    if (!canEval) {
         slog(@"isBiometricIdChangedSinceEnrolment: NO -> ");
         [BiometricsManager logBiometricError:error];
         return NO;
     }
     
-    slog(@"Biometrics State: [%@] vs Last Good: [%@]",
-          [localAuthContext.evaluatedPolicyDomainState base64EncodedStringWithOptions:kNilOptions],
-          [self.lastKnownGoodDatabaseState base64EncodedStringWithOptions:kNilOptions]);
+    NSData* currentState = localAuthContext.evaluatedPolicyDomainState;
+    NSData* lastGood = [self getLastKnownGoodDatabaseState:autoFill];
 
-    return ![localAuthContext.evaluatedPolicyDomainState isEqualToData:[self getLastKnownGoodDatabaseState:autoFill]];
+    slog(@"Biometrics State: [%@] vs Last Good: [%@]",
+          currentState ? [currentState base64EncodedStringWithOptions:kNilOptions] : @"<nil>",
+          lastGood ? [lastGood base64EncodedStringWithOptions:kNilOptions] : @"<nil>");
+
+    if (!currentState || !lastGood) {
+        return NO;
+    }
+
+    return ![currentState isEqualToData:lastGood];
 }
 
 + (void)logBiometricError:(NSError*)error {

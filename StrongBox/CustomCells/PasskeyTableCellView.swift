@@ -14,6 +14,8 @@ class PasskeyTableCellView: UITableViewCell {
     @IBOutlet var labelUserHandle: UILabel!
     @IBOutlet var buttonSharePrivate: UIButton!
     @IBOutlet var labelUsername: UILabel!
+    @IBOutlet var expandButton: UIButton!
+    @IBOutlet weak var detailStackView: UIStackView!
 
     @objc
     var viewController: UIViewController!
@@ -23,6 +25,16 @@ class PasskeyTableCellView: UITableViewCell {
 
     @objc
     var launchUrlFunction: ((_ string: String) -> Void)!
+
+    @objc
+    var onToggleCollapse: (() -> Void)?
+
+    @objc
+    var isCollapsed: Bool = false {
+        didSet {
+            updateCollapsedState()
+        }
+    }
 
     @objc
     var passkey: Passkey! {
@@ -56,6 +68,24 @@ class PasskeyTableCellView: UITableViewCell {
 
     @IBAction func onCopyPrivateKey(_: Any) {
         copyFunction?(passkey.privateKeyPem)
+    }
+
+    @IBAction func onCollapseToggle(_ sender: Any) {
+        isCollapsed.toggle()
+        onToggleCollapse?()
+    }
+
+    private func updateCollapsedState() {
+        self.detailStackView.isHidden = self.isCollapsed
+
+        UIView.animate(withDuration: 0.3) { [weak self] in
+            guard let self = self else { return }
+
+            let rotation = self.isCollapsed ? 0 : CGFloat.pi / 2
+            self.expandButton.transform = CGAffineTransform(rotationAngle: rotation)
+
+            self.contentView.layoutIfNeeded()
+        }
     }
 
     @IBAction func onSharePrivateKey(_: Any) {

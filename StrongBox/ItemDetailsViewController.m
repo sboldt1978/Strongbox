@@ -98,6 +98,8 @@ static NSString* const kSshKeyViewCellId = @"SshKeyViewCell";
 static NSString* const kPasskeyTableCellViewId = @"PasskeyTableCellView";
 static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellView";
 
+static NSString* const kPasskeyRowCollapsedUserDefaultsKey = @"ItemDetailsPasskeyRowCollapsed";
+
 
 
 @interface ItemDetailsViewController () <QLPreviewControllerDataSource, QLPreviewControllerDelegate, UIPopoverPresentationControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate>
@@ -109,6 +111,7 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
 @property UIView* coverView;
 @property BOOL isAutoFillContext;
 @property BOOL inCellHeightsChangedProcess;
+@property BOOL passkeyRowCollapsed;
 
 @property BOOL urlJustChanged;
 @property BOOL justAutoCommittedTotp;
@@ -227,7 +230,9 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
     self.navigationController.navigationBar.prefersLargeTitles = NO;
     
     self.hideMetadataSection = !AppPreferences.sharedInstance.showMetadataOnDetailsScreen || self.explicitHideMetadata;
-    
+
+    self.passkeyRowCollapsed = [[NSUserDefaults standardUserDefaults] boolForKey:kPasskeyRowCollapsedUserDefaultsKey];
+
 #ifndef IS_APP_EXTENSION
     self.isAutoFillContext = NO;
 #else
@@ -353,7 +358,7 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
     [self.navigationItem.backBarButtonItem setTitle:@""];
     
     [self refreshCustomizeViewMenu];
-    
+
     self.navigationItem.leftBarButtonItems = self.splitViewController ? @[self.splitViewController.displayModeButtonItem, self.preferencesBarButton] : @[self.preferencesBarButton];
 }
 
@@ -632,7 +637,16 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
             self.navigationItem.leftBarButtonItems = @[self.cancelOrDiscardBarButton];
         }
         else {
-            self.navigationItem.leftBarButtonItems = self.splitViewController ? @[self.splitViewController.displayModeButtonItem, self.preferencesBarButton] : @[self.preferencesBarButton];
+            
+            if (@available(iOS 26.0, *)) {
+                self.navigationItem.leftBarButtonItems = @[self.preferencesBarButton];
+            } else {
+                if (self.traitCollection.horizontalSizeClass != UIUserInterfaceSizeClassRegular ) {
+                    self.navigationItem.leftBarButtonItems = @[self.preferencesBarButton];
+                } else {
+                    self.navigationItem.leftBarButtonItems = @[self.splitViewController.displayModeButtonItem, self.preferencesBarButton];
+                }
+            }
         }
         
         [self bindTitle];
@@ -897,6 +911,13 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
             if ( !self.model.passkey ) {
                 return CGFLOAT_MIN;
             }
+            else if ( self.passkeyRowCollapsed ) {
+                return 70;
+            }
+            else {
+                
+                return 440;
+            }
 #else
             return CGFLOAT_MIN;
 #endif
@@ -1026,7 +1047,7 @@ static NSString* const kMarkdownUIKitTableCellViewId = @"MarkdownUIKitTableCellV
         if (indexPath.row == kRowPasskey && self.model.passkey ) {
             return UITableViewCellEditingStyleDelete;
         }
-        
+                
         if (indexPath.row >= kSimpleRowCount) { 
             return indexPath.row - kSimpleRowCount == self.model.customFieldsFiltered.count ? UITableViewCellEditingStyleInsert : UITableViewCellEditingStyleDelete;
         }
@@ -2180,21 +2201,31 @@ suggestionProvider:^NSString * _Nullable(NSString * _Nonnull text) {
 - (UITableViewCell*)getPasskeyCell:(NSIndexPath*)indexPath {
     if ( self.model.passkey ) {
         PasskeyTableCellView* cell = [self.tableView dequeueReusableCellWithIdentifier:kPasskeyTableCellViewId forIndexPath:indexPath];
-        
+
         cell.accessoryType = UITableViewCellAccessoryNone;
         cell.editingAccessoryType = UITableViewCellAccessoryNone;
-        
+
         cell.viewController = self;
-        
+
         cell.copyFunction = ^(NSString * _Nonnull string) {
             [self copyToClipboard:string message:NSLocalizedString(@"generic_copied", @"Copied")];
         };
         cell.launchUrlFunction = ^(NSString * _Nonnull string) {
             [self.databaseModel launchUrlString:string];
         };
-        
+
+        cell.isCollapsed = self.passkeyRowCollapsed;
+
+        __weak ItemDetailsViewController* weakSelf = self;
+        cell.onToggleCollapse = ^{
+            weakSelf.passkeyRowCollapsed = !weakSelf.passkeyRowCollapsed;
+            [[NSUserDefaults standardUserDefaults] setBool:weakSelf.passkeyRowCollapsed forKey:kPasskeyRowCollapsedUserDefaultsKey];
+            [weakSelf.tableView beginUpdates];
+            [weakSelf.tableView endUpdates];
+        };
+
         cell.passkey = self.model.passkey;
-        
+
         return cell;
     }
     else {
@@ -2947,5 +2978,31 @@ suggestionProvider:^NSString*(NSString *text) {
         [self.tableView reloadData];
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @end

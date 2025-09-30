@@ -841,6 +841,18 @@ static NSString* getFreeTrialSuffix(void) {
         menuItem.state = self.viewModel.showChangeNotifications ? NSControlStateValueOn : NSControlStateValueOff;
         return YES;
     }
+    else if (theAction == @selector(onConvenienceUnlockProperties:)) {
+        BOOL pinEnabled = self.viewModel.databaseMetadata.conveniencePin != nil;
+
+        if (pinEnabled) {
+            menuItem.title = NSLocalizedString(@"pin_code_settings_menu", @"Pin Code Settings...");
+          
+        } else {
+            menuItem.title = NSLocalizedString(@"nextgen_toolbar_settings_convenience_unlock_ellipsis", @"Touch ID & Watch Unlock Settings...");
+        }
+        
+        return YES;
+    }
     
     
     

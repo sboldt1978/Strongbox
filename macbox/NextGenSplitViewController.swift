@@ -369,6 +369,10 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
     @objc func onCreateRecord(_: Any?) {
         createOrEdit()
     }
+    
+    @objc func onCreateCard(_: Any?) {
+        createOrEditCard()
+    }
 
     @objc func onDeleteOrRecycleItem(_: Any?) {
         NSApplication.shared.sendAction(#selector(BrowseViewController.onDeleteOrRecycleSelectedBrowseViewItems(_:)), to: nil, from: self)
@@ -410,9 +414,9 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
             return
         }
 
-        let vc = CreateEditViewController.instantiateFromStoryboard()
-
         if createNew {
+            let vc = CreateEditViewController.instantiateFromStoryboard()
+            
             if case let .regularHierarchy(selectedGroup) = navigationContext, !database.is(inRecycled: selectedGroup) {
                 vc.initialParentNodeId = selectedGroup
             } else {
@@ -423,16 +427,57 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
                 swlog("🔴 Could not get initial parent node id!")
                 return
             }
+            
+            vc.database = database
+            presentAsSheet(vc)
         } else {
             guard let selectedItem = database.nextGenSelectedItems.first, database.nextGenSelectedItems.count == 1 else {
                 swlog("🔴 Selected Item not set for Editing!")
                 return
             }
 
-            vc.initialNodeId = selectedItem
+            guard let node = database.getItemBy(selectedItem) else {
+                swlog("🔴 Could not find entry with UUID: \(selectedItem)")
+                return
+            }
+            
+            if isCreditCardEntry(node) {
+                let vc = CreateEditCreditCardViewController.instantiateFromStoryboard()
+                vc.initialNodeId = selectedItem
+                vc.database = database
+                presentAsSheet(vc)
+            } else {
+                let vc = CreateEditViewController.instantiateFromStoryboard()
+                vc.initialNodeId = selectedItem
+                vc.database = database
+                presentAsSheet(vc)
+            }
+        }
+    }
+    
+    func createOrEditCard(_ createNew: Bool = true) {
+        if database.locked || database.isEffectivelyReadOnly {
+            swlog("🔴 Cannot edit locked or read-only database")
+            return
         }
 
+        let vc = CreateEditCreditCardViewController.instantiateFromStoryboard()
+        
+        
         vc.database = database
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         presentAsSheet(vc)
     }
@@ -444,11 +489,33 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
             return
         }
 
-        let vc = CreateEditViewController.instantiateFromStoryboard()
-        vc.initialNodeId = uuid
-        vc.database = database
-
-        presentAsSheet(vc)
+        guard let node = database.getItemBy(uuid) else {
+            swlog("🔴 Could not find entry with UUID: \(uuid)")
+            return
+        }
+        
+        if isCreditCardEntry(node) {
+            let vc = CreateEditCreditCardViewController.instantiateFromStoryboard()
+            vc.initialNodeId = uuid
+            vc.database = database
+            presentAsSheet(vc)
+        } else {
+            let vc = CreateEditViewController.instantiateFromStoryboard()
+            vc.initialNodeId = uuid
+            vc.database = database
+            presentAsSheet(vc)
+        }
+    }
+    
+    private func isCreditCardEntry(_ node: Node) -> Bool {
+        let customFields = node.fields.customFields
+        let creditCardFields = ["CVV", "PIN", "Credit Limit", "Card Type"]
+        
+        let foundFields = creditCardFields.filter { fieldName in
+            customFields[fieldName as NSString] != nil
+        }
+        
+        return foundFields.count >= 2
     }
 
     @objc func onShowHideQuickView(_: Any?) {
@@ -831,6 +898,7 @@ extension NextGenSplitViewController: NSToolbarDelegate {
         static let searchField = NSToolbarItem.Identifier("SearchField")
         static let toggleSideBar = NSToolbarItem.Identifier("toggleLeftSidebar")
         static let addEntry = NSToolbarItem.Identifier("addEntryToolbarItem")
+        static let addCardEntry = NSToolbarItem.Identifier("addCreditCardEntryToolbarItem")
         static let createGroup = NSToolbarItem.Identifier("createGroupToolbarItem")
         static let editEntry = NSToolbarItem.Identifier("editEntryToolbarItem")
         static let toggleDetails = NSToolbarItem.Identifier("toggleDetailsView")
@@ -872,6 +940,7 @@ extension NextGenSplitViewController: NSToolbarDelegate {
          NSToolbarItem.Identifier.flexibleSpace,
          ToolbarItemIdentifiers.createGroup,
          ToolbarItemIdentifiers.addEntry,
+         ToolbarItemIdentifiers.addCardEntry,
          NSToolbarItem.Identifier.flexibleSpace,
          ToolbarItemIdentifiers.deleteButton,
          NSToolbarItem.Identifier.flexibleSpace,
@@ -896,6 +965,7 @@ extension NextGenSplitViewController: NSToolbarDelegate {
          NSToolbarItem.Identifier.flexibleSpace,
          ToolbarItemIdentifiers.createGroup,
          ToolbarItemIdentifiers.addEntry,
+         ToolbarItemIdentifiers.addCardEntry,
          NSToolbarItem.Identifier.flexibleSpace,
          ToolbarItemIdentifiers.deleteButton,
          NSToolbarItem.Identifier.flexibleSpace,
@@ -1046,6 +1116,22 @@ extension NextGenSplitViewController: NSToolbarDelegate {
 
         return toolbarItem
     }
+    
+    func getCreateCreditCartEntryToolbarItem() -> NSToolbarItem {
+        let toolbarItem = NSToolbarItem(itemIdentifier: ToolbarItemIdentifiers.addCardEntry)
+
+        let loc = "Create Credit Card Entry"
+
+        toolbarItem.label = loc
+        toolbarItem.paletteLabel = loc
+        toolbarItem.toolTip = loc
+        toolbarItem.isEnabled = true
+        toolbarItem.target = self
+        toolbarItem.action = #selector(onCreateCard(_:))
+        toolbarItem.image = NSImage(systemSymbolName: "creditcard", accessibilityDescription: nil)
+
+        return toolbarItem
+    }
 
     func getDeleteOrRecycleEntryToolbarItem() -> NSToolbarItem {
         let toolbarItem = NSToolbarItem(itemIdentifier: ToolbarItemIdentifiers.deleteButton)
@@ -1156,6 +1242,8 @@ extension NextGenSplitViewController: NSToolbarDelegate {
             return getDeleteOrRecycleEntryToolbarItem()
         } else if itemIdentifier == ToolbarItemIdentifiers.addEntry {
             return getCreateEntryToolbarItem()
+        } else if itemIdentifier == ToolbarItemIdentifiers.addCardEntry {
+            return getCreateCreditCartEntryToolbarItem()
         } else if itemIdentifier == NSToolbarItem.Identifier.flexibleSpace {
             return NSToolbarItem(itemIdentifier: NSToolbarItem.Identifier.flexibleSpace)
         } else if itemIdentifier == ToolbarItemIdentifiers.toggleDetails {
@@ -1231,6 +1319,16 @@ extension NextGenSplitViewController: NSMenuItemValidation, NSToolbarItemValidat
         } else if action == #selector(onLockDatabase) {
             return !database.locked && !database.isEffectivelyReadOnly
         } else if action == #selector(onCreateRecord) {
+            if database.format == .keePass1 { 
+                if case let .regularHierarchy(selectedGroup) = navigationContext {
+                    if selectedGroup == database.rootGroup.uuid {
+                        return false
+                    }
+                }
+            }
+
+            return !database.locked && !database.isEffectivelyReadOnly
+        } else if action == #selector(onCreateCard) {
             if database.format == .keePass1 { 
                 if case let .regularHierarchy(selectedGroup) = navigationContext {
                     if selectedGroup == database.rootGroup.uuid {

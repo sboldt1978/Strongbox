@@ -508,6 +508,18 @@ class QuickSearchPaletteViewController: NSViewController, NSSearchFieldDelegate 
                     return true
                 }
             }
+        } else if event.modifierFlags.contains(.function) {
+            if event.specialKey == .home {
+                if viewMode == .results {
+                    onHomeAction()
+                    return true
+                }
+            } else if event.specialKey == .end {
+                if viewMode == .results {
+                    onEndAction()
+                    return true
+                }
+            }
         } else {
             if event.keyCode == kVK_Escape {
                 let fr = view.window?.firstResponder
@@ -589,6 +601,16 @@ class QuickSearchPaletteViewController: NSViewController, NSSearchFieldDelegate 
         focusSearchField()
     }
 
+    func onHomeAction() {
+        guard results.indices.contains(0) else { return }
+        tableViewResults.scrollRowToVisible(0)
+    }
+    
+    func onEndAction() {
+        guard results.indices.contains(results.count - 1), results.count > 0 else { return }
+        tableViewResults.scrollRowToVisible(results.count - 1)
+    }
+    
     func onUpArrowInActions() {
         let offsetRow = 2
 

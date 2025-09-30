@@ -9,7 +9,7 @@
 import Foundation
 import SwiftUI
 
-class SwiftUIViewFactory: NSObject {
+@objc class SwiftUIViewFactory: NSObject {
     @objc static func makeImportResultViewController(messages: [ImportMessage] = [],
                                                      dismissHandler: @escaping ((_ cancel: Bool) -> Void)) -> UIViewController
     {
@@ -104,6 +104,43 @@ class SwiftUIViewFactory: NSObject {
         let hostingController = UIHostingController(rootView: view)
 
         return hostingController
+    }
+
+    @objc static func getCreditCardEditorViewWithModel(_ model: Model,
+                                                       itemId: NSUUID?,
+                                                       parentGroupId: UUID?,
+                                                       createNewItem: Bool,
+                                                       editImmediately: Bool,
+                                                       forcedReadOnly: Bool,
+                                                       completion: @escaping (_ saved: Bool) -> Void) -> UIViewController {
+        
+        
+        weak var hostingController: UIHostingController<CreditCardEditorView>?
+        
+        
+        let viewModel = CreditCardEditorViewModel(
+            model: model,
+            itemId: itemId,
+            parentGroupId: parentGroupId,
+            createNewItem: createNewItem,
+            editImmediately: editImmediately,
+            forcedReadOnly: forcedReadOnly,
+            completion: completion,
+            onNavigateBack: {
+                
+                hostingController?.navigationController?.popViewController(animated: true)
+            }
+        )
+    
+        
+        
+        let view = CreditCardEditorView(viewModel: viewModel)
+        
+        
+        let controller = UIHostingController(rootView: view)
+        hostingController = controller
+        
+        return controller
     }
 
     #if !IS_APP_EXTENSION && !NO_NETWORKING

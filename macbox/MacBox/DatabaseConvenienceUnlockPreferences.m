@@ -16,7 +16,13 @@
 #import "NSDate+Extensions.h"
 #import "DatabaseMetadata.h"
 
-@interface DatabaseConvenienceUnlockPreferences ()
+#ifndef IS_APP_EXTENSION
+#import "Strongbox-Swift.h"
+#else
+#import "Strongbox_Auto_Fill-Swift.h"
+#endif
+
+@interface DatabaseConvenienceUnlockPreferences () <SimplePinModalDelegate>
 
 @property (weak) IBOutlet NSButton *checkboxUseTouchId;
 @property (weak) IBOutlet NSSlider *sliderExpiry;
@@ -25,18 +31,40 @@
 @property (weak) IBOutlet NSTextField *labelRequireReentry;
 @property (weak) IBOutlet NSButton *checkBoxEnableWatch;
 
-
+@property (weak) IBOutlet NSStackView *biometricStackView;
+@property (strong) NSStackView *pinStackView;
 @property NSArray<NSNumber*>* sliderNotches;
+@property (strong) NSButton *checkboxEnablePin;
+@property (strong) NSButton *buttonChangePin;
+@property (strong) NSTextField *labelPinExplanation;
+@property (strong) NSTextField *labelCurrentPinStatus;
 
 @end
 
 @implementation DatabaseConvenienceUnlockPreferences
 
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    [self createPinUIElements];
+}
+
 - (void)viewDidAppear {
     [super viewDidAppear];
-
     self.sliderNotches = @[@0, @1, @2, @3, @4, @8, @24, @48, @72, @96, @(1*7*24), @(2*7*24), @(3*7*24), @(4*7*24), @(5*7*24), @(6*7*24), @(7*7*24), @(8*7*24), @(12*7*24), @-1];
 
+    
+    if (self.pinStackView && self.biometricStackView) {
+        if (![self.biometricStackView.arrangedSubviews containsObject:self.pinStackView]) {
+            [self.biometricStackView insertArrangedSubview:self.pinStackView atIndex:0];
+        } else {
+            NSUInteger idx = [self.biometricStackView.arrangedSubviews indexOfObject:self.pinStackView];
+            if (idx != 0) {
+                [self.biometricStackView removeArrangedSubview:self.pinStackView];
+                [self.biometricStackView insertArrangedSubview:self.pinStackView atIndex:0];
+            }
+        }
+    }
     [self bindUi];
 }
 
@@ -78,12 +106,42 @@
 }
 
 - (void)bindUi {
+    BOOL pinEnabled = [self isPinEnabled];
+    BOOL watchAvailable = BiometricIdHelper.sharedInstance.isWatchUnlockAvailable;
+    BOOL touchAvailable = BiometricIdHelper.sharedInstance.isTouchIdUnlockAvailable;
+    BOOL methodAvailable = watchAvailable || touchAvailable;
+    BOOL featureAvailable = Settings.sharedInstance.isPro;
+    
+    MacDatabasePreferences* meta = self.model.databaseMetadata;
+    BOOL biometricEnabled = (meta.isTouchIdEnabled && touchAvailable) || (meta.isWatchUnlockEnabled && watchAvailable);
+    BOOL convenienceEnabled = meta.isConvenienceUnlockEnabled;
+    BOOL conveniencePossible = methodAvailable && featureAvailable;
+
+    self.pinStackView.hidden = !pinEnabled;
+    self.biometricStackView.hidden = !conveniencePossible;
+    self.checkboxUseTouchId.enabled = touchAvailable && featureAvailable;
+    self.checkboxUseTouchId.state = meta.isTouchIdEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    self.checkBoxEnableWatch.enabled = watchAvailable && featureAvailable;
+    self.checkBoxEnableWatch.state = meta.isWatchUnlockEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    self.sliderExpiry.enabled = conveniencePossible && convenienceEnabled;
+    self.sliderExpiry.integerValue = [self getSliderValueFromHours:meta.touchIdPasswordExpiryPeriodHours];
+    self.labelExpiryPeriod.stringValue = [self getExpiryPeriodString:meta.touchIdPasswordExpiryPeriodHours];
+    self.labelExpiryPeriod.textColor = (conveniencePossible && convenienceEnabled) ? nil : NSColor.disabledControlTextColor;
+    self.labelRequireReentry.textColor = (conveniencePossible && convenienceEnabled) ? nil : NSColor.disabledControlTextColor;
+    self.passwordStorageSummary.textColor = conveniencePossible ? nil : NSColor.disabledControlTextColor;
+    self.passwordStorageSummary.stringValue = [self getSecureStorageSummary];
+    if (pinEnabled) {
+        [self bindPinMode];
+    }
+}
+
+- (void)bindBiometricUI {
     if ( BiometricIdHelper.sharedInstance.isWatchUnlockAvailable) {
-        self.checkBoxEnableWatch.title = NSLocalizedString(@"preference_allow_watch_unlock", @"Watch Unlock");
+        self.checkBoxEnableWatch.title = NSLocalizedString(@"preference_allow_watch_unlock", @"Watch Unlock");
     }
     else {
         if ( Settings.sharedInstance.isPro ) {
-            self.checkBoxEnableWatch.title = NSLocalizedString(@"preference_allow_watch_unlock_system_disabled", @"Watch Unlock - (Enable in System Settings > Touch ID & Password)");
+            self.checkBoxEnableWatch.title = NSLocalizedString(@"preference_allow_watch_unlock_system_disabled", @"Watch Unlock - (Enable in System Settings > Touch ID & Password)");
         }
     }
         
@@ -177,8 +235,103 @@
         }
     }
     else {
-        return @"Unknown Storage Mode for Convenience Password.";
+        return NSLocalizedString(@"unknown_storage_mode", @"Unknown Storage Mode for Convenience Password.");
     }
+}
+
+- (void)bindPinMode {
+    
+    BOOL pinEnabled = [self isPinEnabled];
+    self.checkboxEnablePin.state = pinEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    
+    
+    if (pinEnabled) {
+        NSString* pinLength = [NSString stringWithFormat:NSLocalizedString(@"pin_status_set_format", @"PIN set (%lu digits)"), (unsigned long)self.model.databaseMetadata.conveniencePin.length];
+        self.labelCurrentPinStatus.stringValue = pinLength;
+        self.labelCurrentPinStatus.textColor = [NSColor labelColor];
+        self.buttonChangePin.enabled = YES;
+    } else {
+        self.labelCurrentPinStatus.stringValue = NSLocalizedString(@"pin_status_not_set", @"No PIN set");
+        self.labelCurrentPinStatus.textColor = [NSColor secondaryLabelColor];
+        self.buttonChangePin.enabled = NO;
+    }
+
+    BOOL watchAvailable = BiometricIdHelper.sharedInstance.isWatchUnlockAvailable;
+    BOOL touchAvailable = BiometricIdHelper.sharedInstance.isTouchIdUnlockAvailable;
+    MacDatabasePreferences* meta = self.model.databaseMetadata;
+    BOOL biometricEnabled = (meta.isTouchIdEnabled && touchAvailable) || (meta.isWatchUnlockEnabled && watchAvailable);
+    
+    if (!biometricEnabled) {
+        self.passwordStorageSummary.stringValue = [self getPinSecureStorageSummary];
+    }
+}
+
+- (void)hideBiometricUIElements {
+    
+    self.checkboxUseTouchId.hidden = YES;
+    self.checkBoxEnableWatch.hidden = YES;
+    self.sliderExpiry.hidden = YES;
+    self.labelExpiryPeriod.hidden = YES;
+    self.labelRequireReentry.hidden = YES;
+}
+
+- (void)showBiometricUIElements {
+    
+    self.checkboxUseTouchId.hidden = NO;
+    self.checkBoxEnableWatch.hidden = NO;
+    self.sliderExpiry.hidden = NO;
+    self.labelExpiryPeriod.hidden = NO;
+    self.labelRequireReentry.hidden = NO;
+}
+
+- (NSString*)getPinSecureStorageSummary {
+    BOOL featureAvailable = Settings.sharedInstance.isPro;
+    if (!featureAvailable) {
+        return NSLocalizedString(@"mac_convenience_summary_only_available_on_pro", @"Convenience Unlock is only available in the Pro version of Strongbox. Please consider upgrading to support development.");
+    }
+    
+    BOOL pinEnabled = [self isPinEnabled];
+    if (!pinEnabled) {
+        return NSLocalizedString(@"pin_unlock_disabled_explanation", @"PIN Unlock is disabled. Enable PIN unlock to quickly access your database alongside Touch ID or Apple Watch, or as an alternative when biometric authentication is not available.");
+    }
+    
+    if (SecretStore.sharedInstance.secureEnclaveAvailable) {
+        return NSLocalizedString(@"pin_secure_enclave_summary", @"PIN is securely stored, protected by your device's Secure Enclave.");
+    } else {
+        return NSLocalizedString(@"pin_keychain_summary", @"PIN is securely stored in your Keychain (Secure Enclave unavailable on this device).");
+    }
+}
+
+- (void)updatePinUIVisibility:(BOOL)showPinMode {
+    if (showPinMode && !self.checkboxEnablePin.superview) {
+        
+        [self.view addSubview:self.checkboxEnablePin];
+        [self.view addSubview:self.labelPinExplanation];
+        [self.view addSubview:self.labelCurrentPinStatus];
+        [self.view addSubview:self.buttonChangePin];
+        
+        
+        [NSLayoutConstraint activateConstraints:@[
+            [self.checkboxEnablePin.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20],
+            [self.checkboxEnablePin.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+            
+            [self.labelPinExplanation.topAnchor constraintEqualToAnchor:self.checkboxEnablePin.bottomAnchor constant:8],
+            [self.labelPinExplanation.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+            [self.labelPinExplanation.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+            
+            [self.labelCurrentPinStatus.topAnchor constraintEqualToAnchor:self.labelPinExplanation.bottomAnchor constant:12],
+            [self.labelCurrentPinStatus.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+            
+            [self.buttonChangePin.topAnchor constraintEqualToAnchor:self.labelCurrentPinStatus.bottomAnchor constant:8],
+            [self.buttonChangePin.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        ]];
+    }
+    
+    
+    self.checkboxEnablePin.hidden = !showPinMode;
+    self.labelPinExplanation.hidden = !showPinMode;
+    self.labelCurrentPinStatus.hidden = !showPinMode;
+    self.buttonChangePin.hidden = !showPinMode;
 }
 
 - (NSString*)getExpiryPeriodString:(NSInteger)expiryPeriodInHours {
@@ -242,6 +395,131 @@
 
 - (IBAction)onClose:(id)sender {
     [self.view.window cancelOperation:nil];
+}
+
+#pragma mark - PIN Functionality
+
+- (void)createPinUIElements {
+    
+    self.checkboxEnablePin = [[NSButton alloc] init];
+    [self.checkboxEnablePin setButtonType:NSButtonTypeSwitch];
+    [self.checkboxEnablePin setTitle:NSLocalizedString(@"enable_pin_unlock_title", @"Enable PIN Unlock")];
+    [self.checkboxEnablePin setTarget:self];
+    [self.checkboxEnablePin setAction:@selector(onPinSettingChanged:)];
+    [self.checkboxEnablePin setTranslatesAutoresizingMaskIntoConstraints:NO];
+    
+    
+    self.labelPinExplanation = [[NSTextField alloc] init];
+    [self.labelPinExplanation setEditable:NO];
+    [self.labelPinExplanation setBordered:NO];
+    [self.labelPinExplanation setBackgroundColor:[NSColor clearColor]];
+    [self.labelPinExplanation setStringValue:NSLocalizedString(@"pin_explanation_text", @"Use a PIN code to quickly unlock your database when biometric authentication is not available.")];
+    [self.labelPinExplanation setFont:[NSFont systemFontOfSize:11]];
+    [self.labelPinExplanation setTextColor:[NSColor secondaryLabelColor]];
+    [self.labelPinExplanation setTranslatesAutoresizingMaskIntoConstraints:NO];
+    [self.labelPinExplanation setLineBreakMode:NSLineBreakByWordWrapping];
+    [self.labelPinExplanation setMaximumNumberOfLines:0];
+    
+    
+    self.labelCurrentPinStatus = [[NSTextField alloc] init];
+    [self.labelCurrentPinStatus setEditable:NO];
+    [self.labelCurrentPinStatus setBordered:NO];
+    [self.labelCurrentPinStatus setBackgroundColor:[NSColor clearColor]];
+    [self.labelCurrentPinStatus setFont:[NSFont systemFontOfSize:12]];
+    [self.labelCurrentPinStatus setTranslatesAutoresizingMaskIntoConstraints:NO];
+    
+    
+    self.buttonChangePin = [[NSButton alloc] init];
+    [self.buttonChangePin setTitle:NSLocalizedString(@"change_pin_button_title", @"Change PIN")];
+    [self.buttonChangePin setTarget:self];
+    [self.buttonChangePin setAction:@selector(onChangePin:)];
+    [self.buttonChangePin setTranslatesAutoresizingMaskIntoConstraints:NO];
+    
+    
+    self.pinStackView = [[NSStackView alloc] init];
+    [self.pinStackView setOrientation:NSUserInterfaceLayoutOrientationVertical];
+    [self.pinStackView setSpacing:10];
+    [self.pinStackView setTranslatesAutoresizingMaskIntoConstraints:NO];
+    [self.pinStackView setAlignment:NSLayoutAttributeLeading];
+    [self.pinStackView addArrangedSubview:self.checkboxEnablePin];
+    [self.pinStackView addArrangedSubview:self.labelPinExplanation];
+    [self.pinStackView addArrangedSubview:self.labelCurrentPinStatus];
+    [self.pinStackView addArrangedSubview:self.buttonChangePin];
+}
+
+- (BOOL)shouldShowPinMode {
+    BOOL featureAvailable = Settings.sharedInstance.isPro;
+    return featureAvailable;
+}
+
+- (BOOL)isPinEnabled {
+    return self.model.databaseMetadata.conveniencePin != nil && self.model.databaseMetadata.conveniencePin.length > 0;
+}
+
+- (void)onPinSettingChanged:(id)sender {
+    BOOL enablePin = self.checkboxEnablePin.state == NSControlStateValueOn;
+    
+    if (enablePin) {
+        [SimplePinModal showFrom:self delegate:self];
+    } else {
+        self.model.databaseMetadata.conveniencePin = nil;
+        [self bindUi];
+        [self forceMenuRefresh];
+    }
+}
+
+- (void)onChangePin:(id)sender {
+    [SimplePinModal showFrom:self delegate:self];
+}
+
+#pragma mark - SimplePinModalDelegate
+
+- (void)simplePinModalDidSubmitPin:(NSString *)pin {
+    if (pin && pin.length >= 4) {
+        self.model.databaseMetadata.conveniencePin = pin;
+        if (!self.model.databaseMetadata.conveniencePasswordHasBeenStored) {
+            self.model.databaseMetadata.conveniencePasswordHasBeenStored = YES;
+            self.model.databaseMetadata.conveniencePassword = self.model.compositeKeyFactors.password;
+        }
+        [self bindUi];
+        [self forceMenuRefresh];
+    } else {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = NSLocalizedString(@"invalid_pin_title", @"Invalid PIN");
+        alert.informativeText = NSLocalizedString(@"invalid_pin_message", @"PIN must be at least 4 characters long.");
+        alert.alertStyle = NSAlertStyleWarning;
+        [alert addButtonWithTitle:NSLocalizedString(@"generic_ok", @"OK")];
+        [alert runModal];
+    }
+}
+
+- (void)simplePinModalDidCancel {
+    [self bindUi];
+}
+
+- (void)forceMenuRefresh {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSMenu* mainMenu = [NSApplication sharedApplication].mainMenu;
+        [self updateConvenienceUnlockMenuItemInMenu:mainMenu];
+    });
+}
+
+- (void)updateConvenienceUnlockMenuItemInMenu:(NSMenu*)menu {
+    for (NSMenuItem* item in menu.itemArray) {
+        if (item.action == @selector(onConvenienceUnlockProperties:)) {
+            BOOL pinEnabled = self.model.databaseMetadata.conveniencePin != nil;
+            
+            if (pinEnabled) {
+                item.title = NSLocalizedString(@"pin_code_settings_menu", @"Pin Code Settings...");
+            } else {
+                item.title = NSLocalizedString(@"touchid_watch_unlock_settings_menu", @"Touch ID & Watch Unlock Settings...");
+            }
+            return;
+        }
+        if (item.hasSubmenu) {
+            [self updateConvenienceUnlockMenuItemInMenu:item.submenu];
+        }
+    }
 }
 
 @end

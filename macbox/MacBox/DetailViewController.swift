@@ -176,8 +176,14 @@ class DetailViewController: NSViewController {
         var ret: [DetailsViewField] = []
 
         ret.append(getTitleField(model, selectedNode))
-        ret.append(contentsOf: getUsernameFields(model, selectedNode))
-        ret.append(contentsOf: getPasswordFields(model, selectedNode))
+        
+        if isCreditCardEntry(selectedNode) {
+            ret.append(contentsOf: getCreditCardFields(model, selectedNode))
+        } else {
+            ret.append(contentsOf: getUsernameFields(model, selectedNode))
+            ret.append(contentsOf: getPasswordFields(model, selectedNode))
+        }
+        
         ret.append(contentsOf: getAuditIssueFields(model, selectedNode))
         ret.append(contentsOf: getTotpFields(model))
         ret.append(contentsOf: getEmailFields(model, selectedNode))
@@ -191,6 +197,106 @@ class DetailViewController: NSViewController {
         ret.append(contentsOf: loadNotes(model, selectedNode))
         ret.append(contentsOf: loadMetadataFields(model))
 
+        return ret
+    }
+    
+    func isCreditCardEntry(_ node: Node) -> Bool {
+        let customFields = node.fields.customFields
+        let creditCardFields = ["CVV", "PIN", "Credit Limit", "Card Type"]
+        
+        let foundFields = creditCardFields.filter { fieldName in
+            customFields[fieldName as NSString] != nil
+        }
+        
+        return foundFields.count >= 2
+    }
+    
+    func getCreditCardFields(_ model: EntryViewModel, _ node: Node) -> [DetailsViewField] {
+        var ret: [DetailsViewField] = []
+        let customFields = node.fields.customFields
+        
+        
+        ret.append(DetailsViewField(name: NSLocalizedString("generic_noun_credit_card", comment: "Credit Card"),
+                                    value: "",
+                                    fieldType: .header,
+                                    object: DetailsViewField.FieldType.creditCardNumber))
+        
+        
+        if !model.username.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_cardholder_name", comment: "Cardholder Name"),
+                                        value: dereference(model.username, node: node),
+                                        fieldType: .creditCardCardholder))
+        }
+        
+        
+        if !model.password.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_number", comment: "Card Number"),
+                                        value: dereference(model.password, node: node),
+                                        fieldType: .creditCardNumber,
+                                        concealed: !Settings.sharedInstance().revealPasswordsImmediately && !quickRevealButtonDown,
+                                        concealable: true))
+        }
+        
+        
+        if let cardTypeField = customFields["Card Type" as NSString], !cardTypeField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_type", comment: "Card Type"),
+                                        value: dereference(cardTypeField.value, node: node),
+                                        fieldType: .creditCardType))
+        }
+        
+        
+        if let validFromField = customFields["Valid From" as NSString], !validFromField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_valid_from", comment: "Valid From"),
+                                        value: dereference(validFromField.value, node: node),
+                                        fieldType: .creditCardValidFrom))
+        }
+        
+        
+        if let cvvField = customFields["CVV" as NSString], !cvvField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_cvv", comment: "CVV"),
+                                        value: dereference(cvvField.value, node: node),
+                                        fieldType: .creditCardCvv,
+                                        concealed: !Settings.sharedInstance().revealPasswordsImmediately && !quickRevealButtonDown,
+                                        concealable: true))
+        }
+        
+        
+        if let pinField = customFields["PIN" as NSString], !pinField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_pin", comment: "PIN"),
+                                        value: dereference(pinField.value, node: node),
+                                        fieldType: .creditCardPin,
+                                        concealed: !Settings.sharedInstance().revealPasswordsImmediately && !quickRevealButtonDown,
+                                        concealable: true))
+        }
+        
+        
+        if let creditLimitField = customFields["Credit Limit" as NSString], !creditLimitField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_credit_limit", comment: "Credit Limit"),
+                                        value: dereference(creditLimitField.value, node: node),
+                                        fieldType: .creditCardLimit))
+        }
+        
+        
+        if let cashLimitField = customFields["Cash Withdrawal Limit" as NSString], !cashLimitField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_cash_withdrawal_limit", comment: "Cash Withdrawal Limit"),
+                                        value: dereference(cashLimitField.value, node: node),
+                                        fieldType: .creditCardLimit))
+        }
+        
+        
+        if let interestRateField = customFields["Interest Rate" as NSString], !interestRateField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_interest_rate", comment: "Interest Rate"),
+                                        value: dereference(interestRateField.value, node: node),
+                                        fieldType: .creditCardType))
+        }
+        
+        
+        if let issueNumberField = customFields["Issue Number" as NSString], !issueNumberField.value.isEmpty {
+            ret.append(DetailsViewField(name: NSLocalizedString("credit_card_issue_number", comment: "Issue Number"),
+                                        value: dereference(issueNumberField.value, node: node),
+                                        fieldType: .creditCardType))
+        }
+        
         return ret
     }
 
@@ -491,9 +597,17 @@ class DetailViewController: NSViewController {
     fileprivate func loadCustomFields(_ model: EntryViewModel, _ node: Node) -> [DetailsViewField] {
         var ret: [DetailsViewField] = []
 
-        let filtered = model.customFieldsFiltered.filter { field in
+        var filtered = model.customFieldsFiltered.filter { field in
             
             !NodeFields.isTotpCustomFieldKey(field.key) && !NodeFields.isAlternativeURLCustomFieldKey(field.key)
+        }
+        
+        
+        if isCreditCardEntry(node) {
+            let creditCardFieldKeys = ["CVV", "PIN", "Credit Limit", "Cash Withdrawal Limit", "Interest Rate", "Issue Number", "Card Type", "Valid From"]
+            filtered = filtered.filter { field in
+                !creditCardFieldKeys.contains(field.key)
+            }
         }
 
         if !filtered.isEmpty {
@@ -634,7 +748,7 @@ class DetailViewController: NSViewController {
         switch field.fieldType {
         case .attachment:
             previewAttachment(field)
-        case .title, .customField, .url, .totp, .keeAgentKey:
+        case .title, .customField, .url, .totp, .keeAgentKey, .creditCardCardholder, .creditCardNumber, .creditCardCvv, .creditCardPin, .creditCardType, .creditCardValidFrom, .creditCardLimit:
             copyFieldToClipboard(field)
         case .header, .headerWithTextButton, .metadata, .expiry, .tags, .auditIssue, .notes, .keeAgentKeySummary:
             break
@@ -1715,6 +1829,29 @@ extension DetailViewController: NSTableViewDelegate {
             }
 
             cell.setContent(field, popupMenuUpdater: { [weak self] menu, originalField in self?.onPopupMenuNeedsUpdate(menu, originalField) })
+
+            return cell
+        case .creditCardCardholder, .creditCardNumber, .creditCardCvv, .creditCardPin, .creditCardType, .creditCardValidFrom, .creditCardLimit:
+            guard let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("GenericDetailFieldTableCellView"), owner: nil) as? GenericDetailFieldTableCellView else {
+                return nil
+            }
+
+            cell.setContent(field,
+                            popupMenuUpdater: { [weak self] menu, originalField in self?.onPopupMenuNeedsUpdate(menu, originalField) },
+                            image: field.leftImage,
+                            onCopyButton: Settings.sharedInstance().showCopyFieldButton ? { [weak self] field in self?.onCopyField(field: field) } : nil,
+                            onShareButton: field.showShare ? { [weak self] field in
+                                self?.onShareField(field: field, cell.shareButton)
+                            } : nil,
+                            onShowLargeTextViewButton: field.showLargeTextView ? { [weak self] field in
+                                guard let field, let self else {
+                                    return
+                                }
+
+                                showLargeTextView(field)
+                            } : nil,
+                            containingWindow: view.window,
+                            singleLineMode: field.singleLineMode)
 
             return cell
         case .customField, .keeAgentKey:

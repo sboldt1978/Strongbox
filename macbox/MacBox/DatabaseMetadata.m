@@ -838,11 +838,19 @@ const NSInteger kDefaultChallengeRefreshIntervalSecs = 0;
 
 
 - (NSString *)conveniencePin {
-    return nil;
+    NSString *key = [NSString stringWithFormat:@"%@-convenience-pin", self.uuid];
+    return [SecretStore.sharedInstance getSecureString:key];
 }
 
 - (void)setConveniencePin:(NSString *)conveniencePin {
-    
+    NSString *key = [NSString stringWithFormat:@"%@-convenience-pin", self.uuid];
+
+    if ( conveniencePin ) {
+        [SecretStore.sharedInstance setSecureString:conveniencePin forIdentifier:key];
+    }
+    else {
+        [SecretStore.sharedInstance deleteSecureItem:key];
+    }
 }
 
 - (BOOL)isEnrolledForConvenience {
@@ -921,7 +929,7 @@ const NSInteger kDefaultChallengeRefreshIntervalSecs = 0;
 
 
 - (BOOL)isConvenienceUnlockEnabled {
-    return self.isTouchIdEnabled || self.isWatchUnlockEnabled;
+    return self.isTouchIdEnabled || self.isWatchUnlockEnabled || (self.conveniencePin != nil);
 }
 
 - (BOOL)conveniencePasswordHasBeenStored {
