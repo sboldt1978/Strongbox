@@ -1216,7 +1216,7 @@ static NSString* const kPrintingStylesheet = @"<head><style type=\"text/css\"> \
             
             
             
-            if ( !node.fields.qualityCheck ) {
+            if ( !node.fields.qualityCheck || [node isCreditCard] ) {
                 [excludedFromAuditSet addObject:node.uuid];
             }
             
@@ -1492,8 +1492,13 @@ static NSString* const kPrintingStylesheet = @"<head><style type=\"text/css\"> \
 - (BOOL)isExcludedFromAudit:(NSUUID *)nodeId {
     Node* node = [self getItemById:nodeId];
     return !node.fields.qualityCheck;
+
     
-    
+}
+
+- (BOOL)isCreditCard:(NSUUID *)nodeID {
+    Node* node = [self getItemById:nodeID];
+    return [node isCreditCard];
 }
 
 - (NSArray<Node *> *)excludedFromAuditItems {

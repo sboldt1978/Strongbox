@@ -20,6 +20,8 @@
 @property MutableOrderedDictionary<NSString*, DatabaseMetadata*>* backingDatabases;
 @property (readonly) MutableOrderedDictionary<NSString*, DatabaseMetadata*>* databases;
 
+- (NSArray<DatabaseMetadata*>*)snapshotIncludingHidden;
+
 @end
 
 static NSString* const kDatabasesDefaultsKey = @"databases";
@@ -149,7 +151,20 @@ NSString* const kDatabasesListChangedNotification = @"databasesListChangedNotifi
 
 
 - (NSArray<DatabaseMetadata *> *)snapshot {
-    return self.databases.allValues;
+    if (Settings.sharedInstance.showHiddenDatabases) {
+        return [self snapshotIncludingHidden];
+    } else {
+        NSPredicate* visiblePredicate = [NSPredicate predicateWithBlock:^BOOL(DatabaseMetadata * _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
+            DatabaseMetadata* metadata = (DatabaseMetadata*)evaluatedObject;
+            return metadata.hidden == NO;
+        }];
+        
+        return [[self.databases.allValues filteredArrayUsingPredicate:visiblePredicate] copy];
+    }
+}
+
+- (NSArray<DatabaseMetadata*>*)snapshotIncludingHidden {
+    return [self.databases.allValues copy];
 }
 
 
@@ -202,7 +217,7 @@ NSString* const kDatabasesListChangedNotification = @"databasesListChangedNotifi
 - (DatabaseMetadata *)getDatabaseByFileUrl:(NSURL *)url {
     
     
-    return [self.snapshot firstOrDefault:^BOOL(DatabaseMetadata * _Nonnull obj) {
+    return [self.snapshotIncludingHidden firstOrDefault:^BOOL(DatabaseMetadata * _Nonnull obj) {
         return [obj.fileUrl isEqual:url];
     }];
 }
@@ -251,9 +266,11 @@ NSString* const kDatabasesListChangedNotification = @"databasesListChangedNotifi
 }
 
 - (NSSet *)getAllNickNamesLowerCase {
-    NSMutableSet *set = [[NSMutableSet alloc] initWithCapacity:self.snapshot.count];
-    
-    for (DatabaseMetadata *safe in self.snapshot) {
+    NSArray<DatabaseMetadata*>* allDatabases = [self snapshotIncludingHidden];
+
+    NSMutableSet *set = [[NSMutableSet alloc] initWithCapacity:allDatabases.count];
+
+    for (DatabaseMetadata *safe in allDatabases) {
         [set addObject:(safe.nickName).lowercaseString];
     }
     

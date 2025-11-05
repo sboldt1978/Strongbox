@@ -283,6 +283,18 @@
 
 
 
+- (BOOL)hidden {
+    return self.metadata.hidden;
+}
+
+- (void)setHidden:(BOOL)hidden {
+    [self update:^(SafeMetaData * _Nonnull metadata) {
+        metadata.hidden = hidden;
+    }];
+}
+
+
+
 - (DuressAction)duressAction {
     return self.metadata.duressAction;
 }

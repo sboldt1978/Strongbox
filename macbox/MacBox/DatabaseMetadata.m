@@ -75,6 +75,8 @@ const NSInteger kDefaultChallengeRefreshIntervalSecs = 0;
         self.cacheChallengeDurationSecs = kDefaultCacheChallengeDurationSecs;
         self.challengeRefreshIntervalSecs = kDefaultChallengeRefreshIntervalSecs;
         self.doNotRefreshChallengeInAF = YES;
+        
+        self.hidden = NO;
     }
     
     return self;
@@ -224,6 +226,7 @@ const NSInteger kDefaultChallengeRefreshIntervalSecs = 0;
     [encoder encodeObject:self.fileUrl forKey:@"fileUrl"];
     [encoder encodeObject:self.storageInfo forKey:@"fileIdentifier"];
     [encoder encodeInteger:self.storageProvider forKey:@"storageProvider"];
+    [encoder encodeBool:self.hidden forKey:@"hidden"];
     [encoder encodeBool:self.isTouchIdEnabled forKey:@"isTouchIdEnabled"];
     [encoder encodeBool:self.hasPromptedForTouchIdEnrol forKey:@"hasPromptedForTouchIdEnrol"];
     [encoder encodeInteger:self.touchIdPasswordExpiryPeriodHours forKey:@"touchIdPasswordExpiryPeriodHours"];
@@ -361,6 +364,10 @@ const NSInteger kDefaultChallengeRefreshIntervalSecs = 0;
         self.storageInfo = [decoder decodeObjectForKey:@"fileIdentifier"];
         self.storageProvider = (int)[decoder decodeIntegerForKey:@"storageProvider"];
         self.isTouchIdEnabled = [decoder decodeBoolForKey:@"isTouchIdEnabled"];
+        
+        if ( [decoder containsValueForKey:@"hidden"] ) {
+            self.hidden = [decoder decodeBoolForKey:@"hidden"];
+        }
         
         if([decoder containsValueForKey:@"hasPromptedForTouchIdEnrol"]) {
             self.hasPromptedForTouchIdEnrol = [decoder decodeBoolForKey:@"hasPromptedForTouchIdEnrol"];

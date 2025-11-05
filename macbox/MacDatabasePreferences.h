@@ -177,6 +177,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property BOOL searchIncludeGroups;
 
+@property BOOL hidden;
+
 
 
 

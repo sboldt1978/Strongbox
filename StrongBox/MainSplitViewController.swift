@@ -239,8 +239,12 @@ class MainSplitViewController: UISplitViewController, UISplitViewControllerDeleg
         if isCollapsed {
             masterNav.pushViewController(vc, animated: true)
         } else {
-            let nav = UINavigationController(rootViewController: vc)
-            viewControllers = [viewControllers.first!, nav]
+            if vc is UINavigationController {
+                viewControllers = [viewControllers.first!, vc]
+            } else {
+                let nav = UINavigationController(rootViewController: vc)
+                viewControllers = [viewControllers.first!, nav]
+            }
         }
 
         return true
@@ -257,8 +261,12 @@ class MainSplitViewController: UISplitViewController, UISplitViewControllerDeleg
         }
 
         if let detailsVc = masterNav.topViewController as? ItemDetailsViewController {
-            masterNav.popViewController(animated: false)
-            return UINavigationController(rootViewController: detailsVc)
+            var masterStack = masterNav.viewControllers
+            masterStack.removeLast()
+            masterNav.setViewControllers(masterStack, animated: false)
+            let detailsNav = UINavigationController(rootViewController: detailsVc)
+            detailsNav.navigationBar.isHidden = masterNav.navigationBar.isHidden
+            return detailsNav
         } else {
             let storyboard = UIStoryboard(name: "EmptyDetails", bundle: nil)
             return storyboard.instantiateInitialViewController()

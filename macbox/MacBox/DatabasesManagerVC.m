@@ -68,6 +68,9 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
 @property (weak) IBOutlet ClickableTextField *textFieldVersion;
 @property (weak) IBOutlet NSButton *buttonProperties;
 @property (weak) IBOutlet CustomBackgroundTableView *tableView;
+@property (weak) IBOutlet NSMenuItem *toggleDatabasesVisibilityMenuItem;
+@property (weak) IBOutlet NSMenuItem *hideUnhideDatabaseMenuItem;
+
 
 @property NSArray<NSString*>* databaseIds;
 @property NSTimer* timerRefresh;
@@ -79,7 +82,9 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
 
 @end
 
-@implementation DatabasesManagerVC
+@implementation DatabasesManagerVC {
+    NSViewController *webDAVConfigVC;
+}
 
 - (void)close {
     [self.view.window cancelOperation:nil];
@@ -721,7 +726,7 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
     
     
     
-        
+    
 #else
     
     
@@ -760,7 +765,7 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
     if ( item ) {
         [menu removeItem:item];
     }
-
+    
 #endif
 }
 
@@ -776,12 +781,26 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
         singleSelectedDatabase = [MacDatabasePreferences fromUuid:databaseId];
     }
     
+    if (theAction == @selector(onToggleHideUnhideDatabase:)) {
+        self.hideUnhideDatabaseMenuItem.title = singleSelectedDatabase.hidden ?
+        NSLocalizedString(@"generic_unhide", @"Unhide") :
+        NSLocalizedString(@"generic_hide", @"Hide");
+    }
+    
+    if (theAction == @selector(onToggleDatabasesVisibilityMenuItem:)) {
+        self.toggleDatabasesVisibilityMenuItem.title = Settings.sharedInstance.showHiddenDatabases ?
+        NSLocalizedString(@"databases_visibility_hide_hidden", @"Hide Hidden Databases") :
+        NSLocalizedString(@"databases_visibility_show_hidden", @"Show Hidden Databases");
+    }
+    
     if ( singleSelectedDatabase ) {
         if (theAction == @selector(onViewSyncLog:) ||
             theAction == @selector(onViewBackups:) ||
             theAction == @selector(onSaveDatabaseAs:) ||
             theAction == @selector(onCopyTo:) ||
-            theAction == @selector(onRename:)) {
+            theAction == @selector(onRename:) ||
+            theAction == @selector(onToggleHideUnhideDatabase:)) {
+                        
 #ifndef NO_NETWORKING
             return YES;
 #else
@@ -828,7 +847,7 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
             BOOL cacheAvailable = [WorkingCopyManager.sharedInstance isLocalWorkingCacheAvailable:singleSelectedDatabase.uuid modified:nil];
             BOOL showOfflineOnFilesDbs = Settings.sharedInstance.showOfflineOptionsOnLocalDeviceDatabases;
             BOOL isFilesBasedDb = singleSelectedDatabase.storageProvider == kLocalDevice;
-                        
+            
             return !isOpen && cacheAvailable && (!isFilesBasedDb || showOfflineOnFilesDbs);
         }
         else if (theAction == @selector(onToggleAlwaysOpenOffline:)) {
@@ -854,7 +873,7 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
 #else
             return singleSelectedDatabase.isLocalDeviceDatabase;
 #endif
-
+            
         }
         else if ( theAction == @selector(onLock:)) {
             return [DatabasesCollection.shared isUnlockedWithUuid:singleSelectedDatabase.uuid];
@@ -886,6 +905,10 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
     
     if (theAction == @selector(onRemove:)) { 
         return self.tableView.selectedRowIndexes.count > 0;
+    }
+    
+    if (theAction == @selector(onToggleDatabasesVisibilityMenuItem:)) {
+        return YES;
     }
     
     return NO;
@@ -1111,6 +1134,22 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
         
         [self publishDatabasePreferencesChangedNotification:databaseId];
     }
+}
+
+- (IBAction)onToggleHideUnhideDatabase:(id)sender {
+    if (self.tableView.selectedRow != -1) {
+        NSString* databaseId = self.databaseIds[self.tableView.selectedRow];
+        MacDatabasePreferences* database = [MacDatabasePreferences fromUuid:databaseId];
+        
+        database.hidden = !database.hidden;
+        
+        [self publishDatabasePreferencesChangedNotification:databaseId];
+    }
+}
+
+- (IBAction)onToggleDatabasesVisibilityMenuItem:(id)sender {
+    Settings.sharedInstance.showHiddenDatabases = !Settings.sharedInstance.showHiddenDatabases;
+    [self refresh];
 }
 
 - (void)publishDatabasePreferencesChangedNotification:(NSString*)databaseUuid {
@@ -1476,20 +1515,21 @@ static const CGFloat kAutoRefreshTimeSeconds = 30.0f;
     NSString* databaseId = self.databaseIds[self.tableView.selectedRow];
     MacDatabasePreferences* database = [MacDatabasePreferences fromUuid:databaseId];
     
-    WebDAVConfigVC* configVC = [WebDAVConfigVC newConfigurationVC];
-    
     WebDAVSessionConfiguration* existing = [WebDAVStorageProvider.sharedInstance getConnectionFromDatabase:database];
     
-    configVC.initialConfiguration = existing;
-    
-    configVC.onDone = ^(BOOL success, WebDAVSessionConfiguration * _Nonnull configuration) {
+    webDAVConfigVC = [SwiftUIViewFactory makeWebDAVConfigurationViewWithInitialConfiguration:existing
+                                                                                        parentController:self
+                                                                                              completion:^(BOOL success, WebDAVSessionConfiguration * _Nullable configuration) {
         if (success) {
             [WebDAVConnections.sharedInstance addOrUpdate:configuration];
             [self refresh];
         }
-    };
+        if (self->webDAVConfigVC) {
+            [self dismissController:self->webDAVConfigVC];
+        }
+    }];
     
-    [self presentViewControllerAsSheet:configVC];
+    [self presentViewControllerAsSheet:webDAVConfigVC];
 }
 
 - (IBAction)onEditSFTPConnection:(id)sender {

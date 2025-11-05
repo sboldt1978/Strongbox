@@ -521,6 +521,7 @@ class CreateEditViewController: NSViewController, NSWindowDelegate, NSToolbarDel
 
         dummyKludge.contentType = .oneTimeCode
         dummyKludgeWidthConstraint.constant = 0.0
+        dummyKludge.alphaValue = 0
     }
 
     func setupNotes() {

@@ -3,8 +3,9 @@ import SwiftUI
 struct AddCustomFieldView: View {
     @Binding var key: String
     @Binding var value: String
-    @State private var isConceablable: Bool = false
+    @Binding var isConceablable: Bool
     
+    let isEditing: Bool
     let onSave: (Bool) -> Void
     let onCancel: () -> Void
     
@@ -23,7 +24,7 @@ struct AddCustomFieldView: View {
                     }
                 }
             }
-            .navigationTitle("Add Custom Field")
+            .navigationTitle(isEditing ? "Edit Custom Field" : "Add Custom Field")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)

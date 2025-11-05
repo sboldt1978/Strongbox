@@ -101,6 +101,20 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
     }
 
     var firstAppearance = true
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if #available(macOS 26.0, *) {
+            
+            self.splitViewItems.first?.automaticallyAdjustsSafeAreaInsets = true
+        }
+
+        guard let detailItem = splitViewItems.last else { return }
+        detailItem.minimumThickness = 300
+        detailItem.maximumThickness = NSSplitViewItem.unspecifiedDimension
+        detailItem.holdingPriority = .defaultLow
+    }
+
     override func viewDidAppear() {
         super.viewDidAppear()
 
@@ -508,14 +522,10 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
     }
     
     private func isCreditCardEntry(_ node: Node) -> Bool {
-        let customFields = node.fields.customFields
-        let creditCardFields = ["CVV", "PIN", "Credit Limit", "Card Type"]
-        
-        let foundFields = creditCardFields.filter { fieldName in
-            customFields[fieldName as NSString] != nil
+        guard !CrossPlatformDependencies.defaults().applicationPreferences.disableCustomViews else {
+            return false
         }
-        
-        return foundFields.count >= 2
+        return node.isCreditCard()
     }
 
     @objc func onShowHideQuickView(_: Any?) {
@@ -645,11 +655,16 @@ class NextGenSplitViewController: NSSplitViewController, NSSearchFieldDelegate {
     }
 
     @objc public func updateSearch(_ searchField: NSSearchField) {
-        let text = searchField.stringValue
+        let rawText = searchField.stringValue
+        let trimmedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if database.nextGenSearchText != searchField.stringValue {
+        if rawText != trimmedText {
+            searchField.stringValue = trimmedText
+        }
 
-            database.nextGenSearchText = text
+        if database.nextGenSearchText != trimmedText {
+
+            database.nextGenSearchText = trimmedText
         }
     }
 

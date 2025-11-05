@@ -23,6 +23,8 @@
 
 @property (readonly) BOOL lastChangeByOtherComponent;
 
+- (NSArray<SafeMetaData*> *)snapshotIncludingHidden;
+
 @end
 
 static NSString* const kDatabasesFilename = @"databases.json";
@@ -120,8 +122,28 @@ NSString* _Nonnull const kDatabaseUpdatedNotification = @"kDatabaseUpdatedNotifi
 
 
 - (NSArray<SafeMetaData *> *)snapshot {
+    if (AppPreferences.sharedInstance.showHiddenDatabases) {
+        return [self snapshotIncludingHidden];
+    } else {
+        __block NSArray<SafeMetaData *> *result;
+        dispatch_sync(self.dataQueue, ^{
+            NSPredicate* visiblePredicate = [NSPredicate predicateWithBlock:^BOOL(SafeMetaData * _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
+                SafeMetaData* metadata = (SafeMetaData*)evaluatedObject;
+                return metadata.hidden == NO;
+            }];
+            
+            result = [[self.databasesList filteredArrayUsingPredicate:visiblePredicate] copy];
+        });
+        return result;
+    }
+}
+
+- (NSArray<SafeMetaData*> *)snapshotIncludingHidden {
     __block NSArray<SafeMetaData *> *result;
-    dispatch_sync(self.dataQueue, ^{ result = [NSArray arrayWithArray:self.databasesList]; });
+    dispatch_sync(self.dataQueue, ^{
+        result = [NSArray arrayWithArray:self.databasesList];
+    });
+
     return result;
 }
 
@@ -275,7 +297,7 @@ NSString* _Nonnull const kDatabaseUpdatedNotification = @"kDatabaseUpdatedNotifi
 }
 
 - (SafeMetaData *)getById:(NSString*)uuid {
-    return [self.snapshot firstOrDefault:^BOOL(SafeMetaData * _Nonnull obj) {
+    return [self.snapshotIncludingHidden firstOrDefault:^BOOL(SafeMetaData * _Nonnull obj) {
         return [obj.uuid isEqualToString:uuid];
     }];
 }
@@ -494,9 +516,11 @@ initialCacheModDate:(NSDate *)initialCacheModDate
 }
 
 - (NSSet *)getAllNickNamesLowerCase {
-    NSMutableSet *set = [[NSMutableSet alloc] initWithCapacity:self.snapshot.count];
-    
-    for (SafeMetaData *safe in self.snapshot) {
+    NSArray<SafeMetaData*>* allSafes = [self snapshotIncludingHidden];
+
+    NSMutableSet *set = [[NSMutableSet alloc] initWithCapacity:allSafes.count];
+
+    for (SafeMetaData *safe in allSafes) {
         [set addObject:(safe.nickName).lowercaseString];
     }
     

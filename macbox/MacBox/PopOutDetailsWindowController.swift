@@ -88,14 +88,8 @@ class PopOutDetailsWindowController: NSWindowController {
     }
     
     private func isCreditCardEntry(_ node: Node) -> Bool {
-        let customFields = node.fields.customFields
-        let creditCardFields = ["CVV", "PIN", "Credit Limit", "Card Type"]
-        
-        let foundFields = creditCardFields.filter { fieldName in
-            customFields[fieldName as NSString] != nil
-        }
-        
-        return foundFields.count >= 2
+        guard !Settings.sharedInstance().disableCustomViews else { return false }
+        return node.isCreditCard()
     }
 
     @objc func onToggleFloatOnTop(_: Any?) {

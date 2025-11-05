@@ -81,6 +81,10 @@
 #import "SyncLogViewController.h"
 #import "CHCSVParser.h"
 
+#import "WebDAVSessionConfiguration.h"
+#import "WebDAVStorageProvider.h"
+#import "WebDAVSessionConfigurationCredential.h"
+
 #ifndef NO_3RD_PARTY_STORAGE_PROVIDERS
 
 #import "DropboxV2StorageProvider.h" 

@@ -112,6 +112,8 @@ extern NSString* const kCustomFieldsColumn;
 @property BOOL lockEvenIfEditing;
 
 @property BOOL screenCaptureBlocked;
+@property BOOL disableCustomViews;
+@property BOOL clearQuickSearchOnOpen;
 
 @property BOOL hasShownFirstRunWelcome;
 
@@ -195,6 +197,8 @@ extern NSString* const kCustomFieldsColumn;
 @property BOOL twoFactorHideCountdownDigits;
 
 @property BOOL showOfflineOptionsOnLocalDeviceDatabases;
+
+@property BOOL showHiddenDatabases;
 
 @end
 

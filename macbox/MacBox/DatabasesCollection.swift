@@ -338,12 +338,12 @@ class DatabasesCollection: NSObject {
 
         let appDelegate = NSApplication.shared.delegate as! AppDelegate
         appDelegate.cancelAutoLockTimer()
+        appDelegate.setPendingAutofillUnlock(uuid)
 
         determiner.getCkfs(message) { [weak self] result, ckfs, fromConvenience, error in
             if !NSApplication.shared.isActive {
                 
                 
-
                 appDelegate.startAutoLockTimer()
             }
 

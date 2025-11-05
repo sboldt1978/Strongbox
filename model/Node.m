@@ -713,6 +713,40 @@ keePassGroupTitleRules:(BOOL)allowDuplicateGroupTitle
     return YES;
 }
 
+- (BOOL)isCreditCard {
+    static NSSet<NSString *> *creditCardFieldKeys;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        creditCardFieldKeys = [NSSet setWithArray:@[
+            @"CreditCardName",
+            @"CardholderName",
+            @"CardType",
+            @"CardNumber",
+            @"ExpiryDate",
+            @"ValidFrom",
+            @"CVV",
+            @"PIN",
+            @"CreditLimit",
+            @"CashWithdrawalLimit",
+            @"InterestRate",
+            @"IssueNumber"
+        ]];
+    });
+
+    NSUInteger matches = 0;
+
+    for (NSString *fieldName in creditCardFieldKeys) {
+        if ([self.fields.customFields objectForKey:fieldName] != nil) {
+            matches++;
+            if (matches >= 2) {
+                return YES;
+            }
+        }
+    }
+
+    return NO;
+}
+
 - (BOOL)preOrderTraverse:(BOOL (^)(Node*))function {
     for ( Node* child in self.childRecords ) {
         if ( !function ( child ) ) {

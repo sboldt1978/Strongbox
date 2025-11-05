@@ -67,3 +67,5 @@
 #import "NewEntryDefaultsHelper.h"
 
 #import "KeyFile.h"
+#import "WebDAVSessionConfiguration.h"
+#import "WebDAVStorageProvider.h"

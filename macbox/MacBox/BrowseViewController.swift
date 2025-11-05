@@ -1446,7 +1446,7 @@ extension BrowseViewController {
     var isSearching: Bool {
         guard let database else { return false }
 
-        let text = database.nextGenSearchText
+        let text = database.nextGenSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return !text.isEmpty
     }

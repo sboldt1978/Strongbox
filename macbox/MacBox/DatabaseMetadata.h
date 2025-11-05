@@ -39,6 +39,7 @@ extern const NSInteger kDefaultPasswordExpiryHours;
 @property (nonatomic, strong, nullable) NSString *storageInfo; 
 @property (nonatomic, strong, nullable) NSString *autoFillStorageInfo; 
 @property (nonatomic) StorageProvider storageProvider;
+@property (nonatomic) BOOL hidden;
 
 @property (nonatomic, strong, nullable) NSString* conveniencePassword;
 @property (nonatomic, strong, nullable) YubiKeyConfiguration* yubiKeyConfiguration;

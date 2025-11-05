@@ -6,7 +6,7 @@
 //  Copyright © 2024 Mark McGuill. All rights reserved.
 //
 
-import Foundation
+import Cocoa
 
 class QuickSearchPalettePanel: NSPanel {
     static let InitialRect = CGRect(x: 0, y: 0, width: 820, height: 40)
@@ -70,6 +70,10 @@ class QuickSearchPalettePanel: NSPanel {
     }
 
     func showPalette() {
+        if let vc = contentViewController as? QuickSearchPaletteViewController {
+            vc.prepareForActivation(clearSearchOnOpen: Settings.sharedInstance().clearQuickSearchOnOpen)
+        }
+
         orderFrontRegardless()
 
         makeKey()

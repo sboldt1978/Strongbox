@@ -43,12 +43,18 @@ extension CreateEditCreditCardViewController {
         vc.onSetField = { [weak self] key, value, protected in
             guard let self else { return }
 
+            let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            if self.viewModel?.isReservedCustomFieldKey(trimmedKey) == true {
+                MacAlerts.info("Reserved Field", informativeText: "That field is managed automatically for credit cards.", window: self.view.window, completion: nil)
+                return
+            }
+
             if let model = self.model {
-                let field = CustomFieldViewModel.customField(withKey: key, value: value, protected: protected)
+                let field = CustomFieldViewModel.customField(withKey: trimmedKey, value: value, protected: protected)
                 model.addCustomField(field)
                 self.onModelEdited()
             } else {
-                self.customFields.append((key: key, value: value, protected: protected))
+                self.customFields.append((key: trimmedKey, value: value, protected: protected))
             }
             self.refreshCustomFields()
         }
@@ -75,13 +81,19 @@ extension CreateEditCreditCardViewController {
             vc.onSetField = { [weak self] key, value, protected in
                 guard let self else { return }
 
-                let newField = CustomFieldViewModel.customField(withKey: key, value: value, protected: protected)
+                let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+                if self.viewModel?.isReservedCustomFieldKey(trimmedKey) == true {
+                    MacAlerts.info("Reserved Field", informativeText: "That field is managed automatically for credit cards.", window: self.view.window, completion: nil)
+                    return
+                }
+
+                let newField = CustomFieldViewModel.customField(withKey: trimmedKey, value: value, protected: protected)
 
                 if let originalModelIndex = self.originalModelIndex(for: idx) {
                     self.model?.removeCustomField(at: UInt(originalModelIndex))
                     self.model?.addCustomField(newField)
                 } else {
-                    self.customFields[idx] = (key: key, value: value, protected: protected)
+                    self.customFields[idx] = (key: trimmedKey, value: value, protected: protected)
                 }
 
                 self.refreshCustomFields()
@@ -101,7 +113,12 @@ extension CreateEditCreditCardViewController {
             
             vc.onSetField = { [weak self] key, value, protected in
                 guard let self else { return }
-                self.customFields[idx] = (key: key, value: value, protected: protected)
+                let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+                if self.viewModel?.isReservedCustomFieldKey(trimmedKey) == true {
+                    MacAlerts.info("Reserved Field", informativeText: "That field is managed automatically for credit cards.", window: self.view.window, completion: nil)
+                    return
+                }
+                self.customFields[idx] = (key: trimmedKey, value: value, protected: protected)
                 self.refreshCustomFields()
             }
         }
@@ -153,8 +170,31 @@ extension CreateEditCreditCardViewController: NSTableViewDataSource {
     private var filteredCustomFields: [CustomFieldViewModel] {
         guard let model = model else { return [] }
         
-        let creditCardFields = Set(["CVV", "PIN", "Credit Limit", "Cash Withdrawal Limit", 
-                                   "Interest Rate", "Issue Number", "Card Type", "Valid From"])
+        let creditCardFields = Set([
+            "CreditCardName",
+            "CardholderName",
+            "CardType",
+            "CardNumber",
+            "ExpiryDate",
+            "ValidFrom",
+            "CVV",
+            "PIN",
+            "CreditLimit",
+            "CashWithdrawalLimit",
+            "InterestRate",
+            "IssueNumber",
+            "Credit Card Name",
+            "Cardholder Name",
+            "Card Holder",
+            "Card Type",
+            "Card Number",
+            "Expiry Date",
+            "Credit Limit",
+            "Cash Withdrawal Limit",
+            "Interest Rate",
+            "Issue Number",
+            "Valid From"
+        ])
         
         return model.customFieldsFiltered.filter { field in
             !creditCardFields.contains(field.key)

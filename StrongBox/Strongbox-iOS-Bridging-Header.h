@@ -86,3 +86,8 @@
 #import "IOSCompositeKeyDeterminer.h"
 #import "DatabaseUnlocker.h"
 #import "ColoredStringHelper.h"
+
+#import "WebDAVSessionConfiguration.h"
+#import "WebDAVStorageProvider.h"
+#import "WebDAVSessionConfigurationCredential.h"
+

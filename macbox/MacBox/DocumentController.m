@@ -127,6 +127,12 @@ static BOOL didRestoreAWindowAtStartup;
                     completion((Document*)document, error);
                 }
             }];
+
+            if (@available(macOS 14.0, *)) {
+                [NSApp activate];
+            } else {
+                [NSApp activateIgnoringOtherApps:YES];
+            }
         }
         else {
             if ( completion ) {

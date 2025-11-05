@@ -631,7 +631,7 @@ static WebDAVProviderData* makeProviderData(NSString *href, WebDAVSessionConfigu
     
 }
     
-- (void)testConnection:(WebDAVSessionConfiguration*)connection viewController:(VIEW_CONTROLLER_PTR)viewController completion:(void (^)(NSError* error))completion {
+- (void)testConnection:(WebDAVSessionConfiguration*)connection viewController:(VIEW_CONTROLLER_PTR)viewController completion:(void (^)(NSError* _Nullable error))completion {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0L), ^{
         [self connect:connection
        viewController:viewController

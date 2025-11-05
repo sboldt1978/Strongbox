@@ -13,6 +13,11 @@ enum WatchAppError: Error {
     case couldNotReadSettings
 }
 
+enum HomeTab {
+    case entries
+    case twoFactorCodes
+}
+
 class WatchAppModel: ObservableObject {
     static let SecretStoreEntriesKey = "WatchAppSecretStoreEntriesKey"
     static let SecretStoreDatabasesKey = "WatchAppSecretStoreDatabasesKey"
@@ -35,6 +40,9 @@ class WatchAppModel: ObservableObject {
             saveEntries()
         }
     }
+    
+    @Published @MainActor
+    var selectedTab = HomeTab.entries
 
     @Published @MainActor
     private(set) var entryList: OrderedDictionary<WatchDatabaseModel, [WatchEntry]> = .init()
@@ -42,6 +50,21 @@ class WatchAppModel: ObservableObject {
     @Published @MainActor
     private(set) var lastSynced: Date?
 
+    init() {
+        
+        refreshSettings()
+    }
+
+    func refreshSettings() {
+        loadAllSettings()
+    }
+
+    func selectTab(tab: HomeTab) {
+        Task { @MainActor in
+            selectedTab = tab
+        }
+    }
+    
     private func getOrderedEntryList() -> OrderedDictionary<WatchDatabaseModel, [WatchEntry]> {
         var ret: OrderedDictionary<WatchDatabaseModel, [WatchEntry]> = .init()
 
@@ -53,23 +76,13 @@ class WatchAppModel: ObservableObject {
 
         return ret
     }
-
-    init() {
-        
-
-        refreshSettings()
-    }
-
-    func refreshSettings() {
-        loadAllSettings()
-    }
-
+    
     private func loadAllSettings() {
         do {
             entriesByDatabase = try loadEntries()
             settings = try loadSettings()
             databases = try loadDatabases()
-
+            
             Task { @MainActor in
                 entryList = getOrderedEntryList()
             }
@@ -123,9 +136,7 @@ class WatchAppModel: ObservableObject {
             swlog("🐞 No settings found in Secret Store, return default")
             throw WatchAppError.couldNotReadSettings
         }
-
-
-
+        
         do {
             return try JSONDecoder().decode(WatchSettingsModel.self, from: json)
         } catch {

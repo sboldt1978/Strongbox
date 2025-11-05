@@ -135,9 +135,13 @@ static BOOL revenueCatFetchCompleted = NO;
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+
     
+    
+    
+    self.navigationController.view.backgroundColor = UIColor.systemBackgroundColor;
     self.tableView.hidden = YES;
-    
+
     [self customizeUI];
     
     [self checkForBrokenVirtualHardwareKeys];
@@ -158,7 +162,7 @@ static BOOL revenueCatFetchCompleted = NO;
         [self internalRefresh];
         
         self.tableView.hidden = NO;
-        
+
         [self listenToNotifications];
         
         if ( ![self isAppLocked] ) {
@@ -236,7 +240,8 @@ static BOOL revenueCatFetchCompleted = NO;
     
     self.debugLines = [DebugLogger.snapshot reverseObjectEnumerator].allObjects;
     
-    self.collection = DatabasePreferences.allDatabases;
+    DatabaseSortOption sortOption = AppPreferences.sharedInstance.databasesSortOption;
+    self.collection = [self sortedDatabasesWithOption:sortOption ascending:YES];
     
     self.tableView.separatorStyle = AppPreferences.sharedInstance.showDatabasesSeparator ? UITableViewCellSeparatorStyleSingleLine : UITableViewCellSeparatorStyleNone;
     
@@ -533,7 +538,8 @@ static BOOL revenueCatFetchCompleted = NO;
     
     
     BOOL reloadedDueToAutoFillChange = [DatabasePreferences reloadIfChangedByOtherComponent];
-    self.collection = DatabasePreferences.allDatabases;
+    self.collection = [self sortedDatabases];
+    
     [self refresh]; 
     
     
@@ -845,7 +851,7 @@ static BOOL revenueCatFetchCompleted = NO;
     NSNotification* notification = param;
     NSString* databaseId = notification.object;
         
-    NSArray<DatabasePreferences*>* newColl = DatabasePreferences.allDatabases;
+    NSArray<DatabasePreferences*>* newColl = [self sortedDatabases];
     
     if (newColl.count != self.collection.count) { 
         [self refresh];
@@ -1393,6 +1399,8 @@ explicitManualUnlock:(BOOL)explicitManualUnlock
         [ma addObject:[self getContextualMenuReadOnlyAction:indexPath]];
     }
     
+    [ma addObject:[self getContextualMenuHideUnhideDatabaseAction:indexPath]];
+    
     [ma addObject:[self getContextualMenuPropertiesAction:indexPath]];
 
     return [UIMenu menuWithTitle:@""
@@ -1521,6 +1529,28 @@ explicitManualUnlock:(BOOL)explicitManualUnlock
     }];
     
     ret.state = safe.readOnly ? UIMenuElementStateOn : UIMenuElementStateOff;
+   
+    return ret;
+}
+
+- (UIAction*)getContextualMenuHideUnhideDatabaseAction:(NSIndexPath*)indexPath  {
+    DatabasePreferences *safe = [self.collection objectAtIndex:indexPath.row];
+    
+    NSString* title = safe.hidden ?
+    NSLocalizedString(@"generic_unhide", @"Unhide") :
+    NSLocalizedString(@"generic_hide", @"Hide");
+    
+    UIImage* image = safe.hidden ?
+    [UIImage systemImageNamed:@"eye.slash"] :
+    [UIImage systemImageNamed:@"eye"];
+    
+    UIAction* ret = [ContextMenuHelper getItem:title
+                                 image:image
+                               handler:^(__kindof UIAction * _Nonnull action) {
+        [self toggleHideUnhide:safe];
+    }];
+    
+    ret.state = safe.hidden ? UIMenuElementStateOn : UIMenuElementStateOff;
    
     return ret;
 }
@@ -1713,6 +1743,10 @@ explicitManualUnlock:(BOOL)explicitManualUnlock
 
 - (void)toggleReadOnly:(DatabasePreferences*)database {
     database.readOnly = !database.readOnly;
+}
+
+- (void)toggleHideUnhide:(DatabasePreferences*)database {
+    database.hidden = !database.hidden;
 }
 
 - (void)promptAboutToggleLocalStorage:(NSIndexPath*)indexPath shared:(BOOL)shared {
@@ -3591,116 +3625,80 @@ explicitManualUnlock:(BOOL)explicitManualUnlock
     [splitView closeAndCleanupWithCompletion:completion];
 }
 
+- (NSArray<DatabasePreferences *> *)sortedDatabases {
+    DatabaseSortOption sortOption = AppPreferences.sharedInstance.databasesSortOption;
+    return [self sortedDatabasesWithOption:sortOption ascending:YES];
+}
+
+- (NSArray<DatabasePreferences *> *)sortedDatabasesWithOption:(DatabaseSortOption)option
+                                                    ascending:(BOOL)ascending {
+    
+    NSArray<DatabasePreferences *> *dbs = DatabasePreferences.allDatabases;
+
+    if (option == DatabaseSortOptionNone) {
+        return dbs;
+    }
+
+
+    NSComparisonResult (^invert)(NSComparisonResult) = ^NSComparisonResult(NSComparisonResult r) {
+        return ascending ? r : (NSComparisonResult)(-r);
+    };
+
+    
+    NSComparisonResult (^cmpDate)(NSDate *, NSDate *) = ^(NSDate *a, NSDate *b) {
+        if (a == b)
+            return NSOrderedSame;
+        if (!a)
+            return NSOrderedDescending;
+        if (!b)
+            return NSOrderedAscending;
+        return [a compare:b];
+    };
+    
+    NSComparisonResult (^cmpString)(NSString *, NSString *) = ^(NSString *a, NSString *b) {
+        if (a == b)
+            return NSOrderedSame;
+        if (!a)
+            return NSOrderedDescending;
+        if (!b)
+            return NSOrderedAscending;
+        return [a localizedCaseInsensitiveCompare:b];
+    };
+    NSComparisonResult (^cmpNumber)(NSNumber *a, NSNumber *b) = ^(NSNumber *a, NSNumber *b) {
+        if (a == b)
+            return NSOrderedSame;
+        if (!a)
+            return NSOrderedDescending;
+        if (!b)
+            return NSOrderedAscending;
+        return [a compare:b];
+    };
+
+    return [dbs sortedArrayUsingComparator:^NSComparisonResult(DatabasePreferences *x, DatabasePreferences *y) {
+        NSComparisonResult r = NSOrderedSame;
+        unsigned long long fileSizeA = 0;
+        unsigned long long fileSizeB = 0;
+        switch (option) {
+            case DatabaseSortOptionDate:
+                r = invert(cmpDate(x.databaseCreated, y.databaseCreated));
+                break;
+            case DatabaseSortOptionName:
+                r = invert(cmpString(x.nickName, y.nickName));
+                break;
+            case DatabaseSortOptionSize:
+                fileSizeA = [WorkingCopyManager.sharedInstance getFileSize:x.uuid];
+                fileSizeB = [WorkingCopyManager.sharedInstance getFileSize:y.uuid];
+                r = invert(cmpNumber(@(fileSizeA), @(fileSizeB)));
+                break;
+            case DatabaseSortOptionNone:
+                break;
+        }
+        if (r == NSOrderedSame) {
+            
+            r = cmpString(x.nickName, y.nickName);
+        }
+        return r;
+    }];
+}
+
 @end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

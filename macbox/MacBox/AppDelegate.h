@@ -26,6 +26,7 @@ extern NSString* _Nonnull const kUpdateNotificationQuickRevealStateChanged;
 @property BOOL suppressQuickLaunchForNextAppActivation; 
 
 @property (readonly) BOOL isWasLaunchedAsLoginItem;
+@property (readonly) NSString *_Nullable pendingAutofillUUID;
 
 
 
@@ -33,6 +34,7 @@ extern NSString* _Nonnull const kUpdateNotificationQuickRevealStateChanged;
 - (void)startAutoLockTimer;
 
 - (void)showAndActivateStrongbox:(NSString*_Nullable)databaseUuid completion:(void (^_Nullable)(void))completion;
+- (void)setPendingAutofillUnlock:(NSString*_Nullable)databaseUuid;
 
 @end
 

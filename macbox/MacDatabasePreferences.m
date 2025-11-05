@@ -252,6 +252,19 @@
 
 
 
+- (BOOL)hidden {
+    return self.metadata.hidden;
+}
+
+- (void)setHidden:(BOOL)hidden {
+    [self update:^(DatabaseMetadata * _Nonnull metadata) {
+        metadata.hidden = hidden;
+    }];
+}
+
+
+
+
 - (NSString *)keyFileBookmark {
     return self.metadata.keyFileBookmark;
 }

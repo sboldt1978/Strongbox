@@ -97,7 +97,7 @@
     configuration.allowUntrustedCertificate = self.switchAllowUntrusted.on;
     
 #ifndef NO_NETWORKING
-    [WebDAVStorageProvider.sharedInstance testConnection:configuration viewController:self completion:^(NSError * _Nonnull error) {
+    [WebDAVStorageProvider.sharedInstance testConnection:configuration viewController:self completion:^(NSError * _Nullable error) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if ( error ) {
                 [Alerts error:self error:error];

@@ -39,9 +39,10 @@
 - (instancetype)initWithOnCopy:(void(^)(void))onCopy {
     if (self = [super initWithFrame:CGRectZero]) {
         self.onCopyButton = onCopy;
-        
-        self.titleLabel = [[UILabel alloc] init];
 
+        self.titleLabel = [[UILabel alloc] init];
+        self.titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+        self.titleLabel.textColor = UIColor.secondaryLabelColor;
         self.button1 = [[UIButton alloc] init];
         UIImage* image1 = [UIImage systemImageNamed:@"doc.on.doc.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithScale:UIImageSymbolScaleLarge]];
         [self.button1 setImage:image1 forState:UIControlStateNormal];
@@ -50,84 +51,68 @@
         self.toggleCollapseButton = [[UIButton alloc] init];
         UIImage* image3 = [UIImage systemImageNamed:@"chevron.right.circle.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithScale:UIImageSymbolScaleLarge]];
         self.toggleCollapseButton.tintColor = UIColor.secondaryLabelColor;
-        
         [self.toggleCollapseButton setImage:image3 forState:UIControlStateNormal];
-        
         [self.toggleCollapseButton addTarget:self action:@selector(sectionHeaderWasTouched:) forControlEvents:UIControlEventTouchUpInside];
-        
+
         [self.contentView addSubview:self.titleLabel];
         [self.contentView addSubview:self.button1];
         [self.contentView addSubview:self.toggleCollapseButton];
-    
-        UITapGestureRecognizer *headerTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sectionHeaderWasTouched:)];
-        
-        [self addGestureRecognizer:headerTapGesture];
-    
-        [self.contentView.heightAnchor constraintEqualToConstant:48].active = YES;
-        
-        if ( onCopy ) {
-            [self.button1.widthAnchor constraintEqualToConstant:32].active = YES;
-            [self.button1.heightAnchor constraintEqualToConstant:32].active = YES;
-        }
-        else {
-            [self.button1.widthAnchor constraintEqualToConstant:0].active = YES;
-            [self.button1.heightAnchor constraintEqualToConstant:0].active = YES;
-        }
 
-        [self.toggleCollapseButton.widthAnchor constraintEqualToConstant:32].active = YES;
-        [self.toggleCollapseButton.heightAnchor constraintEqualToConstant:32].active = YES;
-        
+        UITapGestureRecognizer *headerTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sectionHeaderWasTouched:)];
+        [self addGestureRecognizer:headerTapGesture];
+
         self.titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
         self.button1.translatesAutoresizingMaskIntoConstraints = NO;
         self.toggleCollapseButton.translatesAutoresizingMaskIntoConstraints = NO;
-        
-        BOOL dark = self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
-        self.layer.backgroundColor = dark ? ColorFromRGB(0x0d1117).CGColor : ColorFromRGB(0xf6f8fa).CGColor;
 
-        
+        [self.contentView.heightAnchor constraintEqualToConstant:48].active = YES;
+
+        if (onCopy) {
+            [self.button1.widthAnchor constraintEqualToConstant:32].active = YES;
+            [self.button1.heightAnchor constraintEqualToConstant:32].active = YES;
+        } else {
+            [self.button1.widthAnchor constraintEqualToConstant:0].active = YES;
+            [self.button1.heightAnchor constraintEqualToConstant:0].active = YES;
+        }
+        [self.toggleCollapseButton.widthAnchor constraintEqualToConstant:32].active = YES;
+        [self.toggleCollapseButton.heightAnchor constraintEqualToConstant:32].active = YES;
+
+        [self.titleLabel setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+        [self.titleLabel setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+        [self.button1 setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+        [self.toggleCollapseButton setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+
+        UIView *cv = self.contentView;
+
+        [NSLayoutConstraint activateConstraints:@[
+            [self.titleLabel.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:20],
+            [self.toggleCollapseButton.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor constant:-20.0],
+            [self.button1.trailingAnchor constraintEqualToAnchor:self.toggleCollapseButton.leadingAnchor constant:-20.0],
+            [self.titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.button1.leadingAnchor constant:-8.0],
+            [self.titleLabel.centerYAnchor constraintEqualToAnchor:cv.centerYAnchor],
+            [self.button1.centerYAnchor constraintEqualToAnchor:cv.centerYAnchor],
+            [self.toggleCollapseButton.centerYAnchor constraintEqualToAnchor:cv.centerYAnchor],
+            [self.button1.heightAnchor constraintGreaterThanOrEqualToConstant:32.0],
+            [self.toggleCollapseButton.heightAnchor constraintGreaterThanOrEqualToConstant:32.0],
+        ]];
+
+        BOOL dark = self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
+        self.contentView.backgroundColor = dark ? ColorFromRGB(0x0d1117) : ColorFromRGB(0xf6f8fa);
+
         [self addBottomBorderWithColor:UIColor.systemBackgroundColor andWidth:1.0f];
         [self addTopBorderWithColor:UIColor.systemBackgroundColor andWidth:1.0f];
     }
-    
     return self;
 }
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    
-    [self removeAllConstraints];
+- (void)setTitleText:(NSString * _Nullable)title {
+    self.textLabel.hidden = YES;
+    self.textLabel.text = nil;
 
-    [self.contentView.heightAnchor constraintEqualToConstant:48].active = YES;
-
-    NSDictionary<NSString*, id>* views = @{ @"titleLabel" : self.titleLabel,
-                                            @"button1" : self.button1,
-                                            @"toggleCollapseButton" : self.toggleCollapseButton,
-                                            @"superview" : self.contentView };
-    
-    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-20-[titleLabel]-[button1]-20-[toggleCollapseButton]-20-|"
-                                                                             options:kNilOptions
-                                                                             metrics:nil
-                                                                               views:views]];
-    
-    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[superview]-(<=1)-[titleLabel]"
-                                                                             options:NSLayoutFormatAlignAllCenterY
-                                                                             metrics:nil
-                                                                               views:views]];
-    
-    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[superview]-(<=1)-[button1]"
-                                                                             options:NSLayoutFormatAlignAllCenterY
-                                                                             metrics:nil
-                                                                               views:views]];
-    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[superview]-(<=1)-[toggleCollapseButton]"
-                                                                             options:NSLayoutFormatAlignAllCenterY
-                                                                             metrics:nil
-                                                                               views:views]];
-}
-
-- (void)removeAllConstraints {
-    for (NSLayoutConstraint *c in self.contentView.constraints ) {
-        [self.contentView removeConstraint:c];
-    }
+    self.titleLabel.text = title;
+    self.titleLabel.hidden = (title.length == 0);
+    self.titleLabel.alpha = title.length == 0 ? 0.0 : 1.0;
+    self.accessibilityLabel = title;
 }
 
 - (void)sectionHeaderWasTouched:(id)sender {
@@ -144,7 +129,6 @@
 
 - (void)setCollapsed:(BOOL)collapsed {
     [self.toggleCollapseButton setTransform:CGAffineTransformMakeRotation(collapsed ? 0.0 : M_PI / 2)];
-
 }
 
 @end

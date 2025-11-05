@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) void (^onToggleSection)(void);
 
 - (instancetype)initWithOnCopy:(void(^ _Nullable )(void))onCopy;
+- (void)setTitleText:(NSString * _Nullable)title;
 - (void)setCollapsed:(BOOL)collapsed;
 
 @end

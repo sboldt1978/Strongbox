@@ -79,6 +79,8 @@ static NSString* const kQuitOnAllWindowsClosed = @"quitOnAllWindowsClosed";
 static NSString* const kShowCopyFieldButton = @"showCopyFieldButton";
 static NSString* const kLockEvenIfEditing = @"lockEvenIfEditing";
 static NSString* const kScreenCaptureBlocked = @"screenCaptureBlocked";
+static NSString* const kDisableCustomViews = @"disableCustomViews";
+static NSString* const kClearQuickSearchOnOpen = @"clearQuickSearchOnOpen";
 
 
 
@@ -162,6 +164,8 @@ static NSString* const kAppLockDelay = @"appLockDelay2.0";
 static NSString* const kAppLockAppliesToPreferences = @"appLockAppliesToPreferences";
 static NSString* const kDeleteDataAfterFailedUnlockCount = @"deleteDataAfterFailedUnlockCount";
 static NSString* const kFailedUnlockAttempts = @"failedUnlockAttempts";
+
+static NSString* const kShowHiddenDatabases = @"showHiddenDatabases";
 
 
 
@@ -341,6 +345,22 @@ static NSString* const kFailedUnlockAttempts = @"failedUnlockAttempts";
 
 - (void)setDuplicateItemEditAfterwards:(BOOL)duplicateItemEditAfterwards {
     [self setBool:kDuplicateItemEditAfterwards value:duplicateItemEditAfterwards];
+}
+
+- (BOOL)disableCustomViews {
+    return [self getBool:kDisableCustomViews fallback:NO];
+}
+
+- (void)setDisableCustomViews:(BOOL)disableCustomViews {
+    [self setBool:kDisableCustomViews value:disableCustomViews];
+}
+
+- (BOOL)clearQuickSearchOnOpen {
+    return [self getBool:kClearQuickSearchOnOpen fallback:NO];
+}
+
+- (void)setClearQuickSearchOnOpen:(BOOL)clearQuickSearchOnOpen {
+    [self setBool:kClearQuickSearchOnOpen value:clearQuickSearchOnOpen];
 }
 
 - (BOOL)duplicateItemPreserveTimestamp {
@@ -1290,6 +1310,14 @@ static NSString* const kFailedUnlockAttempts = @"failedUnlockAttempts";
 
 - (void)setHasShownFirstRunWelcome:(BOOL)hasShownFirstRunWelcome {
     [self setBool:kHasShownFirstRunWelcome value:hasShownFirstRunWelcome];
+}
+
+- (BOOL)showHiddenDatabases {
+    return [self getBool:kShowHiddenDatabases];
+}
+
+- (void)setShowHiddenDatabases:(BOOL)showHiddenDatabases {
+    [self setBool:kShowHiddenDatabases value:showHiddenDatabases];
 }
 
 @end

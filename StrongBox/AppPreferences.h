@@ -16,6 +16,13 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef NS_ENUM(NSUInteger, DatabaseSortOption) {
+    DatabaseSortOptionDate = 0,
+    DatabaseSortOptionName = 1,
+    DatabaseSortOptionSize = 2,
+    DatabaseSortOptionNone = 3,
+};
+
 @interface AppPreferences : NSObject<ApplicationPreferences>
 
 + (instancetype)sharedInstance;
@@ -150,6 +157,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property BOOL disableFavIconFeature;
 @property BOOL disableNetworkBasedFeatures; 
 
+@property DatabaseSortOption databasesSortOption;
 
 @property BOOL useIsolatedDropbox;
 
@@ -221,6 +229,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property BOOL showInteractiveAppleWatchSyncGuide;
 
 @property NSInteger zipExportBehaviour; 
+
+@property BOOL showHiddenDatabases;
+
+@property BOOL disableCustomViews;
 
 @end
 

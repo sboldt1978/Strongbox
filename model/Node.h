@@ -140,6 +140,8 @@ NS_ASSUME_NONNULL_BEGIN
           addLegacyFields:(BOOL)addLegacyFields
             addOtpAuthUrl:(BOOL)addOtpAuthUrl;
 
+- (BOOL) isCreditCard;
+
 
 
 

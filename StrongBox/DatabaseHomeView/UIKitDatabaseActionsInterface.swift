@@ -53,7 +53,9 @@ class UIKitDatabaseActionsInterface: DatabaseActionsInterface {
         switch destination {
         case let .entryDetail(uuid):
             let vc = ItemDetailsViewController.fromStoryboard(viewModel, nodeUuid: uuid)
-            splitViewController.showDetailViewController(vc, sender: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now()+0.1, execute: {
+                self.splitViewController.showDetailViewController(vc, sender: nil)
+            })
         case .allEntries:
             let browse = BrowseSafeView.fromStoryboard(.list, model: viewModel)
             navController.pushViewController(browse, animated: true)
@@ -278,8 +280,12 @@ class UIKitDatabaseActionsInterface: DatabaseActionsInterface {
 
     @MainActor
     func onAddEntry() {
-        let vc = ItemDetailsViewController.fromStoryboard(viewModel, nodeUuid: nil)
-        splitViewController.showDetailViewController(vc, sender: nil)
+        
+        
+        DispatchQueue.main.asyncAfter(deadline: .now()+0.1, execute: {
+            let vc = ItemDetailsViewController.fromStoryboard(self.viewModel, nodeUuid: nil)
+            self.splitViewController.showDetailViewController(vc, sender: nil)
+        })
     }
 
     @MainActor

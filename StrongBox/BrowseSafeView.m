@@ -223,10 +223,26 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
     [self refresh];
 }
 
+- (void)willPresentSearchController:(UISearchController *)searchController {
+    self.searchController.searchBar.scopeButtonTitles = @[
+        NSLocalizedString(@"browse_vc_search_scope_title", @"Title"),
+        NSLocalizedString(@"browse_vc_search_scope_username", @"Username"),
+        NSLocalizedString(@"browse_vc_search_scope_password", @"Password"),
+        NSLocalizedString(@"browse_vc_search_scope_url", @"URL"),
+        NSLocalizedString(@"browse_vc_search_scope_tags", @"Tags"),
+        NSLocalizedString(@"browse_vc_search_scope_all", @"All")
+    ];
+}
+
 - (void)didPresentSearchController:(UISearchController *)searchController {
     dispatch_async(dispatch_get_main_queue(), ^(void) {
         [self.searchController.searchBar becomeFirstResponder];
     });
+}
+
+- (void)didDismissSearchController:(UISearchController *)searchController {
+    
+    [self refresh]; 
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -474,13 +490,14 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
     
     self.navigationController.toolbar.hidden = !(exportEnabled || moveAndDeleteEnabled); 
     self.navigationController.toolbarHidden = !(exportEnabled || moveAndDeleteEnabled); 
-    
+    [self.tabBarController.tabBar setHidden: (exportEnabled || moveAndDeleteEnabled)];
+
     [self updateNavigationPrompt];
     
     self.buttonMove.enabled = moveAndDeleteEnabled;
     self.buttonDelete.enabled = moveAndDeleteEnabled;
     self.exportItemsBarButton.enabled = exportEnabled;
-    
+
     [self updateRightNavBarButtons];
 }
 
@@ -491,12 +508,11 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
     UIBarButtonItem* flexibleSpace4 = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
     
     NSArray *toolbarButtons = @[flexibleSpace1, self.buttonMove, flexibleSpace2, self.exportItemsBarButton, flexibleSpace3, self.buttonDelete, flexibleSpace4];
-    
-    [self.exportItemsBarButton setTitle:NSLocalizedString(@"generic_export_ellipsis", @"Export")];
-    [self.buttonMove setTitle:NSLocalizedString(@"generic_move_ellipsis", @"Move...")];
+
     [self.buttonDelete setTintColor:UIColor.systemRedColor];
-    
+
     [self setToolbarItems:toolbarButtons animated:NO];
+
 }
 
 - (void)onSyncButtonClicked:(id)sender {
@@ -1015,13 +1031,6 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
     [self updateAndRefresh];
 }
 
-
-
-- (void)didDismissSearchController:(UISearchController *)searchController {
-    
-    [self refresh]; 
-}
-
 - (void)setupSearchBar {
     self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.searchController.delegate = self;
@@ -1030,13 +1039,6 @@ static NSString* const kEditImmediatelyParam = @"editImmediately";
     self.searchController.obscuresBackgroundDuringPresentation = NO;
     self.searchController.searchBar.delegate = self;
     
-    self.searchController.searchBar.scopeButtonTitles = @[
-        NSLocalizedString(@"browse_vc_search_scope_title", @"Title"),
-        NSLocalizedString(@"browse_vc_search_scope_username", @"Username"),
-        NSLocalizedString(@"browse_vc_search_scope_password", @"Password"),
-        NSLocalizedString(@"browse_vc_search_scope_url", @"URL"),
-        NSLocalizedString(@"browse_vc_search_scope_tags", @"Tags"),
-        NSLocalizedString(@"browse_vc_search_scope_all", @"All")];
     self.searchController.searchBar.selectedScopeButtonIndex = kSearchScopeAll;
 }
 
@@ -2190,15 +2192,13 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
     if (!item || item.isGroup) {
         return NO;
     }
+
     
-    
-    MutableOrderedDictionary* customFields = item.fields.customFields;
-    BOOL hasCardholderName = [customFields objectForKey:@"CardholderName"] != nil;
-    BOOL hasCardNumber = [customFields objectForKey:@"CardNumber"] != nil;
-    BOOL hasCardType = [customFields objectForKey:@"CardType"] != nil;
-    
-    
-    return hasCardholderName && hasCardNumber;
+    if ([[AppPreferences sharedInstance] disableCustomViews]) {
+        return NO;
+    }
+
+    return [item isCreditCard];
 }
 
 - (IBAction)onMove:(id)sender {
@@ -3788,7 +3788,10 @@ isRecursiveGroupFavIconResult:(BOOL)isRecursiveGroupFavIconResult {
         if ( item || editImmediately ) {
             
             UINavigationController* nav = [[UINavigationController alloc] initWithRootViewController:vc];
-            [self.splitViewController showDetailViewController:nav sender:self];
+            dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC);
+            dispatch_after(delayTime, dispatch_get_main_queue(), ^{
+                [self.splitViewController showDetailViewController:nav sender:self];
+            });
         }
         else {
             

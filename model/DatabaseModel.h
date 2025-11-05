@@ -174,6 +174,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, readonly, nonnull) NSArray<Node*> *excludedFromAuditItems;
 - (BOOL)isExcludedFromAudit:(NSUUID*)nodeId;
+- (BOOL)isCreditCard:(NSUUID *)nodeID;
 - (void)excludeFromAudit:(NSUUID*)nodeId exclude:(BOOL)exclude;
 
 @property (nonatomic, readonly, nonnull) NSArray<Node*> *allSearchable;

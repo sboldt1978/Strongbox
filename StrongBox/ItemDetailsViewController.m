@@ -1849,12 +1849,17 @@ didFinishPickingMediaWithInfo:(NSDictionary<UIImagePickerControllerInfoKey,id> *
     if ( self.editing ) {
         return nil;
     }
+
+    NSString* title = [self tableView:tableView titleForHeaderInSection:section];
+    if ( title.length == 0 ) {
+        return nil;
+    }
+
     
     
-    
-    
+
     __weak ItemDetailsViewController* weakSelf = self;
-    
+
     CollapsibleTableViewHeader* header;
     
     if ( section == kNotesSectionIdx ) {
@@ -1866,11 +1871,12 @@ didFinishPickingMediaWithInfo:(NSDictionary<UIImagePickerControllerInfoKey,id> *
     else {
         header = [[CollapsibleTableViewHeader alloc] initWithOnCopy:nil];
     }
-    
+
+    [header setTitleText:title];
     [header setCollapsed:self.databaseModel.metadata.detailsViewCollapsedSections[section].boolValue];
-    
+
     __weak CollapsibleTableViewHeader* weakHeader = header;
-    
+
     header.onToggleSection = ^() {
         BOOL toggled = !weakSelf.databaseModel.metadata.detailsViewCollapsedSections[section].boolValue;
         

@@ -76,6 +76,8 @@ typedef enum : NSUInteger {
 @property BOOL twoFactorEasyReadSeparator; 
 @property BOOL twoFactorHideCountdownDigits; 
 
+@property BOOL disableCustomViews; 
+
 @end
 
 NS_ASSUME_NONNULL_END

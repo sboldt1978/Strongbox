@@ -111,6 +111,7 @@
 @property (weak, nonatomic) IBOutlet UIImageView *imageViewStrongboxSyncStatus;
 @property (weak, nonatomic) IBOutlet UISwitch *showAssociatedWebsites;
 @property (weak, nonatomic) IBOutlet UISwitch *split2FACodes;
+@property (weak, nonatomic) IBOutlet UISwitch *disableCustomViews;
 
 @property (weak, nonatomic) IBOutlet UITableViewCell *cellTheGarage;
 
@@ -240,8 +241,10 @@
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
     
     if(cell == self.cellWebDAVConnections) {
+        #ifndef NO_NETWORKING
         WebDAVConnectionsViewController* vc = [WebDAVConnectionsViewController instantiateFromStoryboard];
         [vc presentFromViewController:self];
+        #endif
     }
     else if (cell == self.cellPasswordGeneration) {
         [self performSegueWithIdentifier:@"seguePrefToPasswordPrefs" sender:nil];
@@ -436,7 +439,9 @@
         
     AppPreferences.sharedInstance.appendDateToExportFileName = self.switchAppendDateExportFilenames.on;
     AppPreferences.sharedInstance.hideExportFromDatabaseContextMenu = self.switchHideExportOnDatabaseMenu.on;
-    
+
+    AppPreferences.sharedInstance.disableCustomViews = self.disableCustomViews.on;
+
 
 
 
@@ -496,6 +501,8 @@
     self.showAssociatedWebsites.on = AppPreferences.sharedInstance.associatedWebsites;
 
     self.split2FACodes.on = AppPreferences.sharedInstance.twoFactorEasyReadSeparator;
+
+    self.disableCustomViews.on = AppPreferences.sharedInstance.disableCustomViews;
 
 #ifndef NO_NETWORKING
     [CloudKitDatabasesInteractor.shared getCloudKitAccountStatusWithCompletionHandler:^(CKAccountStatus status, NSError * _Nullable error) {

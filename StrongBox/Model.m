@@ -838,6 +838,9 @@ userInteractionRequired:(BOOL)userInteractionRequired
 
 
 - (BOOL)isExcludedFromAudit:(NSUUID *)uuid {
+    if ([self.database isCreditCard:uuid]) {
+        return true;
+    }
     if ( self.originalFormat == kKeePass4 ) {
         return [self.database isExcludedFromAudit:uuid];
     }

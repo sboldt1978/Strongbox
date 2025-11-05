@@ -17,6 +17,22 @@ class CreditCardEditorViewModel: ObservableObject {
     private var parentGroupUuid: UUID?
     private var onCancel: (() -> Void)?
     private var saveCompletion: ((_ saved: Bool) -> Void)?
+
+    
+    private static let reservedCustomFieldKeys: Set<String> = [
+        "CreditCardName",
+        "CardholderName",
+        "CardType",
+        "CardNumber",
+        "ExpiryDate",
+        "ValidFrom",
+        "CVV",
+        "PIN",
+        "CreditLimit",
+        "CashWithdrawalLimit",
+        "InterestRate",
+        "IssueNumber"
+    ]
     
     
     var navigationTitle: String {
@@ -245,10 +261,34 @@ class CreditCardEditorViewModel: ObservableObject {
         item.fields.setCustomField("InterestRate", value: StringValue(string: creditCardData.interestRate, protected: false))
         item.fields.setCustomField("IssueNumber", value: StringValue(string: creditCardData.issueNumber, protected: false))
         
+        let desiredCustomFieldKeys = Set(
+            creditCardData.customFields.compactMap { customField -> String? in
+                guard let key = customField["key"], !key.isEmpty else { return nil }
+                return key
+            }
+        )
         
-
-
-
+        let existingCustomFieldKeys = item.fields.customFields.allKeys().compactMap { key -> String? in
+            if let stringKey = key as? String {
+                return stringKey
+            }
+            if let nsStringKey = key as? NSString {
+                return String(nsStringKey)
+            }
+            return nil
+        }
+        
+        var keysToRemove = existingCustomFieldKeys.filter {
+            !Self.reservedCustomFieldKeys.contains($0) && !desiredCustomFieldKeys.contains($0)
+        }
+        keysToRemove.append(contentsOf: creditCardData.customFieldsForRemoval.filter {
+            !desiredCustomFieldKeys.contains($0)
+        })
+        
+        for key in Set(keysToRemove) {
+            item.fields.removeCustomField(key)
+        }
+        creditCardData.customFieldsForRemoval.removeAll()
         
         
         for (index, customField) in creditCardData.customFields.enumerated() {
@@ -354,16 +394,48 @@ class CreditCardEditorViewModel: ObservableObject {
         markAsChanged()
     }
     
+    func updateCustomField(at index: Int, key: String, value: String, isConceablable: Bool, originalKey: String?) {
+        guard index < creditCardData.customFields.count else { return }
+        
+        objectWillChange.send()
+        
+        if let originalKey = originalKey, originalKey != key {
+            if !creditCardData.customFieldsForRemoval.contains(originalKey) {
+                creditCardData.customFieldsForRemoval.append(originalKey)
+            }
+        }
+        
+        creditCardData.customFields[index] = ["key": key, "value": value]
+        
+        if index < creditCardData.customFieldsConceablable.count {
+            creditCardData.customFieldsConceablable[index] = isConceablable
+        } else {
+            while creditCardData.customFieldsConceablable.count <= index {
+                creditCardData.customFieldsConceablable.append(false)
+            }
+            creditCardData.customFieldsConceablable[index] = isConceablable
+        }
+        
+        if index >= creditCardData.customFieldsConcealed.count {
+            while creditCardData.customFieldsConcealed.count <= index {
+                creditCardData.customFieldsConcealed.append(false)
+            }
+        }
+        
+        markAsChanged()
+    }
+    
     func removeCustomField(at index: Int) {
         guard index < creditCardData.customFields.count else { return }
         
         
         objectWillChange.send()
         
-        
-
-
-
+        if let key = creditCardData.customFields[index]["key"], !key.isEmpty {
+            if !creditCardData.customFieldsForRemoval.contains(key) {
+                creditCardData.customFieldsForRemoval.append(key)
+            }
+        }
         
         creditCardData.customFields.remove(at: index)
         
@@ -449,6 +521,3 @@ enum CreditCardSaveError: LocalizedError {
         }
     }
 }
-
-
-

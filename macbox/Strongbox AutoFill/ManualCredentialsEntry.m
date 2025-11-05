@@ -15,6 +15,10 @@
 #import "MacAlerts.h"
 #import "StrongboxMacFilesManager.h"
 
+#if defined(TARGET_OS_MAC) && !defined(IS_APP_EXTENSION)
+#import "AppDelegate.h"
+#endif
+
 #import "Constants.h"
 #import "HardwareKeyMenuHelper.h"
 #import "KeyFileManagement.h"
@@ -114,7 +118,17 @@
 
 - (void)onDatabaseLockStatusChanged:(NSNotification*)notification {
     NSString* databaseUuid = notification.object;
+
     
+    
+    #if defined(TARGET_OS_MAC) && !defined(IS_APP_EXTENSION)
+    AppDelegate* appDelegate = NSApplication.sharedApplication.delegate;
+
+    if ([appDelegate.pendingAutofillUUID isEqualToString: self.databaseUuid]) {
+        return;
+    }
+    #endif
+
     if ( [databaseUuid isEqualToString:self.databaseUuid] ) {
         slog(@"✅ ManualCredentialsEntry::onDatabaseLockStatusChanged: [%@]", notification);
         

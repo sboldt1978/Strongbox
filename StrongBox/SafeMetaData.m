@@ -120,6 +120,8 @@ static const NSUInteger kDefaultScheduledExportIntervalDays = 28;
         self.challengeRefreshIntervalSecs = kDefaultChallengeRefreshIntervalSecs;
         self.doNotRefreshChallengeInAF = YES;
         self.appleWatchEnabled = YES;
+        
+        self.hidden = NO;
     }
     
     return self;
@@ -175,6 +177,8 @@ static const NSUInteger kDefaultScheduledExportIntervalDays = 28;
     if ( jsonDictionary[@"autoLockTimeoutSeconds"] != nil ) ret.autoLockTimeoutSeconds = jsonDictionary[@"autoLockTimeoutSeconds"];
     if ( jsonDictionary[@"detailsViewCollapsedSections"] != nil ) ret.detailsViewCollapsedSections = jsonDictionary[@"detailsViewCollapsedSections"];
     if ( jsonDictionary[@"failedPinAttempts"] != nil ) ret.failedPinAttempts = ((NSNumber*)jsonDictionary[@"failedPinAttempts"]).intValue;
+    
+    if ( jsonDictionary[@"hidden"] != nil ) ret.hidden = ((NSNumber*)jsonDictionary[@"hidden"]).boolValue;
     
     if ( jsonDictionary[@"autoFillEnabled"] != nil ) ret.autoFillEnabled = ((NSNumber*)jsonDictionary[@"autoFillEnabled"]).boolValue;
 
@@ -645,6 +649,7 @@ static const NSUInteger kDefaultScheduledExportIntervalDays = 28;
 - (NSDictionary *)getJsonSerializationDictionary {
     NSMutableDictionary *ret = [NSMutableDictionary dictionaryWithDictionary:@{
         @"uuid" : self.uuid,
+        @"hidden" : @(self.hidden),
         @"failedPinAttempts" : @(self.failedPinAttempts),
         @"autoFillEnabled" : @(self.autoFillEnabled),
         @"likelyFormat" : @(self.likelyFormat),

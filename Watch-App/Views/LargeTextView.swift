@@ -5,7 +5,6 @@
 //  Created by Strongbox on 14/12/2024.
 //  Copyright © 2024 Mark McGuill. All rights reserved.
 //
-
 import MarkdownUI
 import SwiftUI
 
@@ -18,9 +17,6 @@ struct LargeTextView: View {
         ScrollView {
             if markdown {
                 let view = Markdown(value)
-
-
-
 
                 if pro {
                     view

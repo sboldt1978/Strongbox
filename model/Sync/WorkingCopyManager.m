@@ -61,7 +61,7 @@
     
     if ( file ) {
         NSURL* fileUrl = [NSURL fileURLWithPath:file];
-    
+        
         BOOL success = [NSFileManager.defaultManager replaceItemAtURL:localWorkingCacheUrl withItemAtURL:fileUrl backupItemName:nil options:kNilOptions resultingItemURL:nil error:error];
         if ( !success ) {
             slog(@"SyncManager::replaceItemAtURL - failed with %@", error ? *error : nil);
@@ -72,8 +72,8 @@
         [data writeToURL:localWorkingCacheUrl options:NSDataWritingAtomic error:error];
     }
     
-
-
+    
+    
     if (*error) {
         return nil;
     }
@@ -83,7 +83,7 @@
                                        ofItemAtPath:localWorkingCacheUrl.path
                                               error:&err2];
         
-
+        
         
         if (err2 && error) {
             *error = err2;
@@ -129,7 +129,7 @@
 
 - (NSURL*)getLocalWorkingCache:(NSString*)databaseUuid modified:(NSDate**)modified fileSize:(unsigned long long*_Nullable)fileSize {
     NSURL* url = [self getLocalWorkingCacheUrlForDatabase:databaseUuid];
-
+    
     NSError* error;
     NSDictionary* attributes = [NSFileManager.defaultManager attributesOfItemAtPath:url.path error:&error];
     
@@ -140,11 +140,11 @@
         }
         return nil;
     }
-
+    
     if (modified) {
         *modified = attributes.fileModificationDate;
     }
-
+    
     if (fileSize) {
         *fileSize = attributes.fileSize;
     }
@@ -158,6 +158,16 @@
     [self getLocalWorkingCache:databaseUuid modified:&ret];
     
     return ret;
+}
+
+- (unsigned long long)getFileSize:(NSString*)databaseUuid {
+    NSURL* url = [self getLocalWorkingCacheUrlForDatabase:databaseUuid];
+    NSError* error;
+    NSDictionary* attributes = [NSFileManager.defaultManager attributesOfItemAtPath:url.path error:&error];
+    if (error) {
+        return 0;
+    }
+    return attributes.fileSize;
 }
 
 @end

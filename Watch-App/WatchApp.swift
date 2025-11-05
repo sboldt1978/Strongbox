@@ -10,11 +10,9 @@ import SwiftUI
 
 @main
 struct WatchApp: App {
+    
     let syncer: WatchClientSyncer!
     let model: WatchAppModel!
-
-
-
 
     init() {
         model = WatchAppModel()
@@ -43,19 +41,11 @@ struct WatchApp: App {
                 .onLoad {
                     model.refreshSettings() 
                 }
-
-
-
-
-
-
-
-
-
-
-
-
-
+                .onOpenURL { url in
+                    if url.host == "2fa" {
+                        model.selectTab(tab: .twoFactorCodes)
+                    }
+                }
         }
     }
 }

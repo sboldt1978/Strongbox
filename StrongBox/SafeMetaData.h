@@ -44,6 +44,7 @@ extern const NSInteger kDefaultConvenienceExpiryPeriodHours;
 @property (nonatomic, strong) NSString *fileName;
 @property (nonatomic, strong) NSString *fileIdentifier;
 @property (nonatomic) StorageProvider storageProvider;
+@property (nonatomic) BOOL hidden;
 
 @property BOOL hasBeenPromptedForQuickLaunch;
 

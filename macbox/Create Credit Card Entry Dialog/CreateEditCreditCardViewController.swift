@@ -334,6 +334,8 @@ final class CreateEditCreditCardViewController: NSViewController, NSWindowDelega
         
         if let index = viewModel.availableCardTypes.firstIndex(of: viewModel.cardType) {
             cardTypePopUpButton.selectItem(at: index)
+        } else if let fallbackIndex = viewModel.availableCardTypes.firstIndex(of: "Other") {
+            cardTypePopUpButton.selectItem(at: fallbackIndex)
         }
         
         if let expiryDate = viewModel.expiryDate {
@@ -422,7 +424,7 @@ final class CreateEditCreditCardViewController: NSViewController, NSWindowDelega
         viewModel.cashWithdrawalLimit = cashWithdrawalLimitTextField.stringValue
         viewModel.interestRate = interestRateTextField.stringValue
         viewModel.issueNumber = issueNumberTextField.stringValue
-        viewModel.cardType = cardTypePopUpButton.selectedItem?.title ?? "Visa"
+        viewModel.cardType = cardTypePopUpButton.selectedItem?.title ?? "Other"
         
         if let notesTextView = notesTextField.documentView as? NSTextView {
             viewModel.notes = notesTextView.string

@@ -1,10 +1,16 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct CreditCardEditorView: View {
     @StateObject private var viewModel: CreditCardEditorViewModel
     @State private var newCustomFieldKey = ""
     @State private var newCustomFieldValue = ""
+    @State private var newCustomFieldIsConceablable = false
     @State private var showingAddCustomField = false
+    @State private var editingCustomFieldIndex: Int? = nil
+    @State private var editingOriginalCustomFieldKey: String? = nil
     
     @FocusState private var focusedField: CreditCardFocusField?
     
@@ -142,8 +148,10 @@ struct CreditCardEditorView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(viewModel.cancelButtonTitle) {
-                        viewModel.handleCancelTapped()
+                    if shouldShowBackButton {
+                        Button(viewModel.cancelButtonTitle) {
+                            viewModel.handleCancelTapped()
+                        }
                     }
                 }
                 
@@ -157,7 +165,7 @@ struct CreditCardEditorView: View {
                             Text("Edit")
                         }
                     }
-                    .disabled(viewModel.isEditing && !viewModel.canSaveChanges && !viewModel.justAutoCommittedTotp)
+                    .disabled(viewModel.isLoading)
                     .modify { view in
                         if #available(iOS 26, *) {
                             view.buttonStyle(.glassProminent)
@@ -188,21 +196,34 @@ struct CreditCardEditorView: View {
                 focusedField = viewModel.focusFirstField()
             }
         }
-        .sheet(isPresented: $showingAddCustomField) {
+        .sheet(isPresented: $showingAddCustomField, onDismiss: resetCustomFieldFormState) {
             AddCustomFieldView(
                 key: $newCustomFieldKey,
                 value: $newCustomFieldValue,
+                isConceablable: $newCustomFieldIsConceablable,
+                isEditing: editingCustomFieldIndex != nil,
                 onSave: { isConceablable in
-                    if !newCustomFieldKey.isEmpty {
-                        viewModel.addCustomField(key: newCustomFieldKey, value: newCustomFieldValue, isConceablable: isConceablable)
-                        newCustomFieldKey = ""
-                        newCustomFieldValue = ""
+                    guard !newCustomFieldKey.isEmpty else { return }
+                    
+                    if let editingIndex = editingCustomFieldIndex {
+                        viewModel.updateCustomField(
+                            at: editingIndex,
+                            key: newCustomFieldKey,
+                            value: newCustomFieldValue,
+                            isConceablable: isConceablable,
+                            originalKey: editingOriginalCustomFieldKey
+                        )
+                    } else {
+                        viewModel.addCustomField(
+                            key: newCustomFieldKey,
+                            value: newCustomFieldValue,
+                            isConceablable: isConceablable
+                        )
                     }
+                    
                     showingAddCustomField = false
                 },
                 onCancel: {
-                    newCustomFieldKey = ""
-                    newCustomFieldValue = ""
                     showingAddCustomField = false
                 }
             )
@@ -222,18 +243,50 @@ struct CreditCardEditorView: View {
 }
 
 private extension CreditCardEditorView {
+    var shouldShowBackButton: Bool {
+#if os(iOS)
+        return UIDevice.current.userInterfaceIdiom != .pad
+#else
+        return true
+#endif
+    }
+
     @ViewBuilder
     func addAnotherFieldComponent() -> some View {
         Button {
-            showingAddCustomField = true
+            presentCustomFieldSheet(for: nil)
         } label: {
             HStack {
                 Image(systemName: "plus.circle.fill")
                     .foregroundColor(.green)
                 Text("Add Another Field")
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)
             }
         }
+    }
+    
+    func presentCustomFieldSheet(for index: Int?) {
+        if let index = index,
+           index < viewModel.creditCardData.customFields.count {
+            editingCustomFieldIndex = index
+            let existingKey = viewModel.creditCardData.customFields[index]["key"] ?? ""
+            editingOriginalCustomFieldKey = existingKey.isEmpty ? nil : existingKey
+            newCustomFieldKey = existingKey
+            newCustomFieldValue = viewModel.creditCardData.customFields[index]["value"] ?? ""
+            newCustomFieldIsConceablable = viewModel.isCustomFieldConceablable(at: index)
+        } else {
+            resetCustomFieldFormState()
+        }
+        
+        showingAddCustomField = true
+    }
+    
+    func resetCustomFieldFormState() {
+        newCustomFieldKey = ""
+        newCustomFieldValue = ""
+        newCustomFieldIsConceablable = false
+        editingCustomFieldIndex = nil
+        editingOriginalCustomFieldKey = nil
     }
     
     @ViewBuilder
@@ -247,11 +300,24 @@ private extension CreditCardEditorView {
             CreditCardFormSecureInputView("", text: .constant(fieldValue), isSecured: $viewModel.creditCardData.customFieldsConcealed[index])
         } trailingContent: {
             if viewModel.isEditing {
-                Button {
-                    viewModel.removeCustomField(at: index)
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
+                HStack(spacing: 16) {
+                    Button {
+                        presentCustomFieldSheet(for: index)
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundColor(.primary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .accessibilityLabel("Edit")
+                    
+                    Button {
+                        viewModel.removeCustomField(at: index)
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .accessibilityLabel("Delete")
                 }
             } else if isConceablable {
                 Button {

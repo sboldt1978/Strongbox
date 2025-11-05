@@ -115,6 +115,7 @@ initialCacheModDate:(NSDate * _Nullable )initialCacheModDate
 @property BOOL showExpiredInBrowse;
 @property BOOL hideIconInBrowse;
 
+@property BOOL hidden;
 
 @property BOOL easyReadFontForAll;
 

@@ -57,6 +57,22 @@ class QuickSearchPaletteViewController: NSViewController, NSSearchFieldDelegate 
         return sb.instantiateInitialController() as! Self
     }
 
+    func prepareForActivation(clearSearchOnOpen: Bool) {
+        if #available(macOS 14.0, *) {
+            loadViewIfNeeded()
+        }
+
+        guard clearSearchOnOpen else { return }
+
+        if !searchField.stringValue.isEmpty {
+            searchField.stringValue = ""
+        }
+
+        loadResults()
+        viewMode = .results
+        refreshAll()
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 

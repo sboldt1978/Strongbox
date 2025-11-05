@@ -85,6 +85,8 @@ const NSInteger kTopLevelMenuItemTagView = 1113;
 @property NSPopover* systemTrayPopover;
 @property NSDate* systemTrayPopoverClosedAt;
 
+@property NSString *_Nullable pendingAutofillUUID;
+
 @end
 
 @implementation AppDelegate
@@ -911,6 +913,11 @@ const NSInteger kTopLevelMenuItemTagView = 1113;
         
         [self showAndActivateStrongboxStage2:completion];
     }
+}
+
+- (void)setPendingAutofillUnlock:(NSString*_Nullable)databaseUuid {
+    slog(@"Autofill Request Pending - [%@]", databaseUuid);
+    _pendingAutofillUUID = databaseUuid;
 }
 
 - (void)showAndActivateStrongboxStage2:(void (^_Nullable)(void))completion {

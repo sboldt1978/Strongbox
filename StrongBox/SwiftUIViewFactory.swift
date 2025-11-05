@@ -139,7 +139,8 @@ import SwiftUI
         
         let controller = UIHostingController(rootView: view)
         hostingController = controller
-        
+        hostingController?.hidesBottomBarWhenPushed = true
+
         return controller
     }
 

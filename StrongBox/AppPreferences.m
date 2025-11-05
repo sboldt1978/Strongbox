@@ -47,6 +47,8 @@ static NSString* const kDatabaseCellSubtitle1 = @"databaseCellSubtitle1";
 static NSString* const kDatabaseCellSubtitle2 = @"databaseCellSubtitle2";
 static NSString* const kShowDatabasesSeparator = @"showDatabasesSeparator";
 
+static NSString* const kDatabasesSortOption = @"databasesSortOption";
+
 static NSString* const kSyncPullEvenIfModifiedDateSame = @"syncPullEvenIfModifiedDateSame";
 static NSString* const kSyncForcePushDoNotCheckForConflicts = @"syncForcePushDoNotCheckForConflicts";
 
@@ -141,6 +143,7 @@ static NSString* const kDuplicateItemReferenceUsername = @"duplicateItemReferenc
 
 static NSString* const kDuplicateItemEditAfterwards = @"duplicateItemEditAfterwards";
 static NSString* const kDisableThirdPartyStorageOptions = @"disableThirdPartyStorageOptions";
+static NSString* const kDisableCustomViews = @"disableCustomViews";
 
 static NSString* const kMarkdownNotes = @"markdownNotes";
 static NSString* const kAutoFillLongTapPreview = @"autoFillLongTapPreview";
@@ -190,6 +193,8 @@ static NSString* const kTwoFactorHideCountdownDigits = @"twoFactorHideCountdownD
 static NSString* const kAppleWatchIntegration = @"appleWatchIntegration";
 static NSString* const kLastDisplayedWhatsNewMessage = @"lastDisplayedWhatsNewMessage";
 static NSString* const kShowInteractiveAppleWatchSyncGuide = @"showInteractiveAppleWatchSyncGuide";
+
+static NSString* const kShowHiddenDatabases = @"showHiddenDatabases";
 
 @implementation AppPreferences
 
@@ -616,6 +621,14 @@ static NSString* const kShowInteractiveAppleWatchSyncGuide = @"showInteractiveAp
 
 - (void)setDisableThirdPartyStorageOptions:(BOOL)disableThirdPartyStorageOptions {
     [self setBool:kDisableThirdPartyStorageOptions value:disableThirdPartyStorageOptions];
+}
+
+- (BOOL)disableCustomViews {
+    return [self getBool:kDisableCustomViews fallback:NO];
+}
+
+- (void)setDisableCustomViews:(BOOL)disableCustomViews {
+    [self setBool:kDisableCustomViews value:disableCustomViews];
 }
 
 - (BOOL)duplicateItemEditAfterwards {
@@ -1288,6 +1301,15 @@ static NSString* const kShowInteractiveAppleWatchSyncGuide = @"showInteractiveAp
     [self setInteger:kDatabaseCellSubtitle2 value:databaseCellSubtitle2];
 }
 
+- (DatabaseSortOption)databasesSortOption {
+    NSInteger defaultValue = DatabaseSortOptionDate;
+    return [self getInteger:kDatabasesSortOption fallback:defaultValue];
+}
+
+- (void)setDatabasesSortOption:(DatabaseSortOption)option {
+    [self setInteger:kDatabasesSortOption value:option];
+}
+
 
 
 - (BOOL)haveAttemptedMigrationToFullFileProtection {
@@ -1525,6 +1547,14 @@ static NSString* const kShowInteractiveAppleWatchSyncGuide = @"showInteractiveAp
 
 - (void)setAppLockAppliesToPreferences:(BOOL)appLockAppliesToPreferences {
     [self setBool:kAppLockAppliesToPreferences value:appLockAppliesToPreferences];
+}
+
+- (BOOL)showHiddenDatabases {
+    return [self getBool:kShowHiddenDatabases];
+}
+
+- (void)setShowHiddenDatabases:(BOOL)showHiddenDatabases {
+    [self setBool:kShowHiddenDatabases value:showHiddenDatabases];
 }
 
 

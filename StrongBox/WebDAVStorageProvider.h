@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (WebDAVProviderData*)getProviderDataFromMetaData:(METADATA_PTR)metaData;
 - (WebDAVSessionConfiguration*_Nullable)getConnectionFromDatabase:(METADATA_PTR)metaData;
 
-- (void)testConnection:(WebDAVSessionConfiguration*)connection viewController:(VIEW_CONTROLLER_PTR)viewController completion:(void (^)(NSError* error))completion;
+- (void)testConnection:(WebDAVSessionConfiguration*)connection viewController:(VIEW_CONTROLLER_PTR)viewController completion:(void (^)(NSError* _Nullable error))completion;
 
 @end
 

@@ -32,7 +32,9 @@ class AdvancedAppPreferences: NSViewController {
     @IBOutlet var imageViewStrongboxSyncStatus: NSImageView!
 
     @IBOutlet var associatedWebsites: NSButton!
-
+    @IBOutlet var disableCustomViews: NSButton!
+    @IBOutlet var clearQuickSearchOnOpen: NSButton!
+    
     @IBOutlet var showOfflineOptionsForFilesDatabases: NSButton!
     
 
@@ -74,6 +76,8 @@ class AdvancedAppPreferences: NSViewController {
         quitClosesAllWindowsNotTerminate.state = settings.quitTerminatesProcessEvenInSystemTrayMode ? .off : .on
         concealedClipboard.state = settings.concealClipboardFromMonitors ? .on : .off
         atomicSftpWrites.state = settings.atomicSftpWrite ? .on : .off
+        disableCustomViews.state = settings.disableCustomViews ? .on : .off
+        clearQuickSearchOnOpen.state = settings.clearQuickSearchOnOpen ? .on : .off
 
         
 
@@ -82,7 +86,6 @@ class AdvancedAppPreferences: NSViewController {
         useColorBindPalette.isHidden = !settings.colorizePasswords
         hideKeyFile.isHidden = settings.doNotRememberKeyFile
         enableThirdParty.isEnabled = settings.isPro
-
         
 
         
@@ -187,6 +190,8 @@ class AdvancedAppPreferences: NSViewController {
         settings.concealClipboardFromMonitors = concealedClipboard.state == .on
         settings.atomicSftpWrite = atomicSftpWrites.state == .on
         settings.associatedWebsites = associatedWebsites.state == .on
+        settings.disableCustomViews = disableCustomViews.state == .on
+        settings.clearQuickSearchOnOpen = clearQuickSearchOnOpen.state == .on
 
         
 

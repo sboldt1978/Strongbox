@@ -63,8 +63,7 @@ struct Watch2FACodeOnlyView: View {
 }
 
 struct Watch2FACodesOnlyView: View {
-    @EnvironmentObject
-    var model: WatchAppModel
+    @EnvironmentObject var model: WatchAppModel
 
     var body: some View {
         List {
@@ -73,12 +72,7 @@ struct Watch2FACodesOnlyView: View {
                     let twoFaOnly = entries.filter { $0.twoFaOtpAuthUrl != nil }
 
                     ForEach(twoFaOnly) { entry in
-                        
-                        
-                        
-                        
                         Watch2FACodeOnlyView(entry: entry, database: database)
-                        
                     }
                 }
             }
@@ -87,14 +81,14 @@ struct Watch2FACodesOnlyView: View {
 }
 
 struct WatchHomeScreen: View {
-    @EnvironmentObject
-    var model: WatchAppModel
+    
+    @EnvironmentObject var model: WatchAppModel
 
-    var has2FACodes: Bool {
+    private var has2FACodes: Bool {
         allEntries.first { $0.twoFaOtpAuthUrl != nil } != nil
     }
 
-    var allEntries: [WatchEntry] {
+    private var allEntries: [WatchEntry] {
         model.entryList.values.flatMap { $0 }
     }
 
@@ -102,17 +96,19 @@ struct WatchHomeScreen: View {
         if model.entryList.keys.elements.isEmpty {
             WatchEmptyView()
         } else {
-            TabView {
+            TabView(selection: $model.selectedTab) {
                 NavigationView {
                     WatchEntryListView()
                         .navigationTitle("Strongbox")
                 }
-
+                .tag(HomeTab.entries)
+                
                 if has2FACodes {
                     NavigationView {
                         Watch2FACodesOnlyView()
                             .navigationTitle("browse_prefs_view_as_totp_list")
                     }
+                    .tag(HomeTab.twoFactorCodes)
                 }
             }
         }
