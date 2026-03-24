@@ -1,4 +1,19 @@
 // strongbox-prefs – Export / Import Strongbox macOS Preferences
+//
+// Strongbox writes user settings to TWO separate plist files:
+//
+//   1. App Group plist  (most settings – via Settings.sharedInstance)
+//      ~/Library/Group Containers/<groupID>/Library/Preferences/<groupID>.plist
+//      groupID = "group.strongbox.mac.mcguill"  (dev / direct distribution)
+//              = "4326J8XDF2.group.strongbox.mac.mcguill"  (App Store build)
+//
+//   2. Standard defaults plist  (keyboard shortcuts – via MASShortcutBinder)
+//      ~/Library/Containers/com.markmcguill.strongbox/Data/Library/Preferences/
+//          com.markmcguill.strongbox.plist
+//
+// This tool reads / writes both files so that ALL user-configurable settings
+// are captured in a single export JSON.
+//
 // Usage:
 //   strongbox-prefs export [output.json]
 //   strongbox-prefs import <input.json>
@@ -6,38 +21,63 @@
 
 import Foundation
 
-// MARK: – Known Plist Locations
+// MARK: – Plist Sources
 
-/// Strongbox macOS stores its shared settings in the App Group container.
-/// Two known group names exist (dev vs. App-Store build).
+/// Represents one preferences storage location together with its exportable key whitelist.
+struct PlistSource {
+    let label: String
+    let url: URL
+    let exportableKeys: Set<String>
+}
+
+// ---------------------------------------------------------------------------
+// Source 1 – App Group defaults
+// ---------------------------------------------------------------------------
+
+/// Two known App Group IDs (dev build vs. App Store build).
 let knownGroupIDs = [
     "group.strongbox.mac.mcguill",
     "4326J8XDF2.group.strongbox.mac.mcguill",
 ]
 
-func plistURL(for groupID: String) -> URL {
-    let gc = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: "Library/Group Containers/\(groupID)/Library/Preferences/\(groupID).plist",
-                   directoryHint: .notDirectory)
-    return gc
+func appGroupPlistURL(for groupID: String) -> URL {
+    FileManager.default.homeDirectoryForCurrentUser
+        .appending(
+            path: "Library/Group Containers/\(groupID)/Library/Preferences/\(groupID).plist",
+            directoryHint: .notDirectory
+        )
 }
 
-func locatePlist() -> (url: URL, groupID: String)? {
-    for id in knownGroupIDs {
-        let url = plistURL(for: id)
-        if FileManager.default.fileExists(atPath: url.path) {
-            return (url, id)
-        }
-    }
-    return nil
-}
-
-// MARK: – Exportable Keys
-
-/// Only user-facing settings are exported.
-/// Internal state (license, biometrics cache, launch counts, CloudKit tokens, …) is excluded.
-let exportableKeys: Set<String> = [
-    // UI / Behaviour
+/// Keys exported from the App Group plist.
+/// Derived by reading every `static NSString* const k…` in Settings.m and
+/// keeping only those that back user-facing preferences.
+///
+/// Excluded intentionally:
+///   • fullVersion / endFreeTrialDate            – license state
+///   • lastEntitlementCheckAttempt / …           – entitlement housekeeping
+///   • appHasBeenDowngraded… / hasPrompted…       – one-time prompt flags
+///   • hasShownFirstRunWelcome / freeTrialNudge…  – onboarding state
+///   • installDate / launchCountKey               – telemetry
+///   • hasAskedAboutDatabaseOpenInBackground      – one-time prompt flag
+///   • hasPromptedForThirdPartyAutoFill           – one-time prompt flag
+///   • lastKnownGoodDatabaseState / autoFill…     – biometric cache (security)
+///   • cloudKitZoneCreated / changeNotifications… – CloudKit internal state
+///   • hasWarnedAboutCloudKitUnavailability        – one-time warning flag
+///   • lastCloudKitRefresh                        – sync timestamp
+///   • wiFiSyncPasscodeSSKey                      – stored in SecretStore, not plist
+///   • wiFiSyncPasscodeSSKeyHasBeenInitialized    – internal init flag
+///   • wiFiSyncServiceName                        – device-specific
+///   • lastWiFiSyncPasscodeError                  – transient error string
+///   • autoFillWroteCleanly                       – crash-guard flag
+///   • lastQuickTypeMultiDbRegularClear            – internal cleanup timestamp
+///   • failedUnlockAttempts                       – security counter
+///   • appLockPin2.0                              – stored in SecretStore, not plist
+///   • duressDummyData                            – security data (setter is NOTIMPL)
+///   • passwordStrengthConfig                     – getter returns .defaults, setter is NOTIMPL
+///   • useUSGovAuthority                          – getter returns NO, setter is NOP
+///   • checkPinYin                                – always returns NO on macOS
+let appGroupExportableKeys: Set<String> = [
+    // ── UI / Window behaviour ──────────────────────────────────────────────
     "alwaysShowPassword",
     "autoSave",
     "clearClipboardEnabled",
@@ -48,53 +88,76 @@ let exportableKeys: Set<String> = [
     "colorizeUseColorBlindPalette",
     "concealClipboardFromMonitors-DefaultON-27-Dec-2022",
     "disableCustomViews",
+    "floatOnTop",
     "hideOnCopy",
+    "largeTextViewFloatOnTop",
     "lockDatabaseOnWindowClose",
     "lockDatabasesOnScreenLock",
     "lockEvenIfEditing",
     "markdownNotes",
     "miniaturizeOnCopy",
+    "passwordGeneratorFloatOnTop",
     "quickRevealWithOptionKey",
-    "quitTerminatesProcessEvenInSystemTrayMode",
     "quitOnAllWindowsClosed",
+    "quitTerminatesProcessEvenInSystemTrayMode",
     "screenCaptureBlocked",
+    "showAutoFillTotpCopiedMessage",
     "showCopyFieldButton",
-    "showDatabasesManagerOnCloseAllWindows",
     "showDatabasesManagerOnAppLaunch",
+    "showDatabasesManagerOnCloseAllWindows",
+    "showHiddenDatabases",
     "showOfflineOptionsOnLocalDeviceDatabases",
+    "showPasswordGenInTray",
     "showPasswordImmediatelyInOutline",
     "showSystemTrayIcon",
-    "showPasswordGenInTray",
-    "showAutoFillTotpCopiedMessage",
     "hideDockIconOnAllMinimized",
     "closeManagerOnLaunch",
     "autoLaunchSingleDatabase",
     "autoCommitScannedTotp",
+    "systemMenuClickAction",
 
-    // Auto-Lock
+    // ── Appearance ────────────────────────────────────────────────────────
+    "appAppearance2",
+
+    // ── Auto-Lock ─────────────────────────────────────────────────────────
     "autoLockTimeout",
     "autoLockIfInBackgroundTimeoutSeconds",
     "autoPromptForTouchIdOnActivate",
 
-    // Key Files
+    // ── App Lock ──────────────────────────────────────────────────────────
+    "appLockMode2.0",
+    "appLockDelay2.0",
+    "appLockAppliesToPreferences",
+    "deleteDataAfterFailedUnlockCount",
+
+    // ── Access / Restrictions ─────────────────────────────────────────────
+    "databasesAreAlwaysReadOnly",
+    "disableExport",
+    "disablePrinting",
+    "disableCopyTo",
+    "disableMakeVisibleInFiles",
+
+    // ── Key Files ─────────────────────────────────────────────────────────
     "hideKeyFileNameOnLockScreen",
     "doNotRememberKeyFile",
 
-    // Password / TOTP
+    // ── Password Generation / TOTP ────────────────────────────────────────
     "passwordGenerationConfig",
     "trayPasswordGenerationConfig",
     "addLegacySupplementaryTotpCustomFields",
     "addOtpAuthUrl",
     "twoFactorEasyReadSeparator",
-    "twoFactorHideCountdownDigits",   // NOTE: macOS uses this key; iOS uses "twoFactorHideCountdownDigits2"
+    // NOTE: macOS Settings.m uses "twoFactorHideCountdownDigits" (no suffix).
+    //       The iOS AppPreferences.m uses "twoFactorHideCountdownDigits2".
+    "twoFactorHideCountdownDigits",
 
-    // FavIcons / AutoFill
+    // ── FavIcons / AutoFill ───────────────────────────────────────────────
     "favIconDownloadOptions",
     "autoFillNewRecordSettings",
     "allowEmptyOrNoPasswordEntry",
     "associatedWebsites",
 
-    // Sync / Backup
+    // ── Sync / Backup ─────────────────────────────────────────────────────
     "atomicSftpWrite",
     "makeLocalRollingBackups",
     "stripUnusedHistoricalIcons",
@@ -104,40 +167,83 @@ let exportableKeys: Set<String> = [
     "disableNativeNetworkStorageOptions",
     "disableWiFiSyncClientMode",
     "wiFiSyncOn",
+    "runBrowserAutoFillProxyServer-Prod-22-Oct-2022",
+
+    // ── SSH Agent ─────────────────────────────────────────────────────────
     "runSshAgent",
     "sshAgentApprovalDefaultExpiryMinutes",
     "sshAgentRequestDatabaseUnlockAllowed",
     "sshAgentPreventRapidRepeatedUnlockRequests",
-    "runBrowserAutoFillProxyServer-Prod-22-Oct-2022",
 
-    // App Lock / Access Control
-    "appLockMode2.0",
-    "appLockDelay2.0",
-    "appLockAppliesToPreferences",
-    "deleteDataAfterFailedUnlockCount",
-    "databasesAreAlwaysReadOnly",
-    "disableExport",
-    "disablePrinting",
-    "disableCopyTo",
-    "disableMakeVisibleInFiles",
-
-    // Duplicate / Export
+    // ── Duplicate / Export behaviour ──────────────────────────────────────
     "duplicateItemPreserveTimestamp",
     "duplicateItemReferencePassword",
     "duplicateItemReferenceUsername",
     "duplicateItemEditAfterwards",
 
-    // Appearance
-    "appAppearance2",
-    "floatOnTop",
-    "passwordGeneratorFloatOnTop",
-    "largeTextViewFloatOnTop",
-    "systemMenuClickAction",
-    "showHiddenDatabases",
-
-    // Enterprise / Organisation
+    // ── Enterprise / Organisation ─────────────────────────────────────────
     "businessOrganisationName",
 ]
+
+// ---------------------------------------------------------------------------
+// Source 2 – Standard (sandboxed-app) defaults
+// ---------------------------------------------------------------------------
+
+/// The bundle identifier used by the Strongbox macOS app.
+/// The standard defaults plist lives inside the app's sandbox container.
+let knownBundleIDs = [
+    "com.markmcguill.strongbox",
+]
+
+func standardPlistURL(for bundleID: String) -> URL {
+    FileManager.default.homeDirectoryForCurrentUser
+        .appending(
+            path: "Library/Containers/\(bundleID)/Data/Library/Preferences/\(bundleID).plist",
+            directoryHint: .notDirectory
+        )
+}
+
+/// Keys exported from the standard (sandboxed-app) defaults plist.
+///
+/// MASShortcutBinder persists keyboard shortcuts via [NSUserDefaults standardUserDefaults],
+/// which maps to the app's own container plist – NOT the shared App Group plist.
+/// Key values come from Constants.m:
+///   kPreferenceGlobalShowShortcutNotification = "GlobalShowStrongboxHotKey-New"
+///   kPreferenceLaunchQuickSearchShortcut      = "LaunchQuickSearchShortcut"
+///   kPreferencePasswordGeneratorShortcut      = "PasswordGeneratorShortcut"
+let standardExportableKeys: Set<String> = [
+    "GlobalShowStrongboxHotKey-New",
+    "LaunchQuickSearchShortcut",
+    "PasswordGeneratorShortcut",
+]
+
+// ---------------------------------------------------------------------------
+// Source resolution
+// ---------------------------------------------------------------------------
+
+func resolveSources() -> [PlistSource] {
+    var sources: [PlistSource] = []
+
+    // App Group plist
+    for id in knownGroupIDs {
+        let url = appGroupPlistURL(for: id)
+        if FileManager.default.fileExists(atPath: url.path) {
+            sources.append(PlistSource(label: id, url: url, exportableKeys: appGroupExportableKeys))
+            break
+        }
+    }
+
+    // Standard plist
+    for bid in knownBundleIDs {
+        let url = standardPlistURL(for: bid)
+        if FileManager.default.fileExists(atPath: url.path) {
+            sources.append(PlistSource(label: bid, url: url, exportableKeys: standardExportableKeys))
+            break
+        }
+    }
+
+    return sources
+}
 
 // MARK: – Plist Helpers
 
@@ -156,8 +262,8 @@ func writePlist(_ dict: [String: Any], to url: URL) throws {
 
 // MARK: – JSON Helpers
 
-/// PropertyList values that JSON can't represent natively (Data, Date) are
-/// base64-encoded / ISO-8601-stringified so the JSON round-trip is lossless.
+/// PropertyList values that JSON cannot represent natively (Data, Date) are
+/// wrapped in a typed object so the round-trip is lossless.
 func plistValueToJSON(_ value: Any) -> Any {
     switch value {
     case let d as Data:
@@ -178,14 +284,9 @@ func jsonValueToPlist(_ value: Any) -> Any {
         if let type = dict["__type"] as? String {
             switch type {
             case "data":
-                if let b64 = dict["value"] as? String, let data = Data(base64Encoded: b64) {
-                    return data
-                }
+                if let b64 = dict["value"] as? String, let data = Data(base64Encoded: b64) { return data }
             case "date":
-                if let s = dict["value"] as? String,
-                   let date = ISO8601DateFormatter().date(from: s) {
-                    return date
-                }
+                if let s = dict["value"] as? String, let date = ISO8601DateFormatter().date(from: s) { return date }
             default: break
             }
         }
@@ -199,23 +300,25 @@ func jsonValueToPlist(_ value: Any) -> Any {
 // MARK: – Commands
 
 func exportPrefs(to outputPath: String?) throws {
-    guard let (plistURL, groupID) = locatePlist() else {
-        throw StrongboxPrefsError.plistNotFound
-    }
-
-    let all = try readPlist(from: plistURL)
+    let sources = resolveSources()
+    guard !sources.isEmpty else { throw StrongboxPrefsError.plistNotFound }
 
     var exported: [String: Any] = [:]
-    for key in exportableKeys {
-        if let value = all[key] {
-            exported[key] = plistValueToJSON(value)
+    var sourceLabels: [String] = []
+
+    for source in sources {
+        let all = try readPlist(from: source.url)
+        var count = 0
+        for key in source.exportableKeys {
+            if let value = all[key] {
+                exported[key] = plistValueToJSON(value)
+                count += 1
+            }
         }
+        sourceLabels.append("\(source.label) (\(count) keys)")
     }
 
-    let json = try JSONSerialization.data(
-        withJSONObject: exported,
-        options: [.prettyPrinted, .sortedKeys]
-    )
+    let json = try JSONSerialization.data(withJSONObject: exported, options: [.prettyPrinted, .sortedKeys])
 
     let destination: URL
     if let path = outputPath {
@@ -227,70 +330,82 @@ func exportPrefs(to outputPath: String?) throws {
     }
 
     try json.write(to: destination, options: .atomic)
-    print("✅ Exported \(exported.count) settings from group '\(groupID)'")
+    print("✅ Exported \(exported.count) settings total")
+    for label in sourceLabels { print("   • \(label)") }
     print("   → \(destination.path)")
 }
 
 func importPrefs(from inputPath: String) throws {
-    guard let (plistURL, groupID) = locatePlist() else {
-        throw StrongboxPrefsError.plistNotFound
-    }
+    let sources = resolveSources()
+    guard !sources.isEmpty else { throw StrongboxPrefsError.plistNotFound }
 
     let jsonData = try Data(contentsOf: URL(fileURLWithPath: inputPath))
     guard let jsonDict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
         throw StrongboxPrefsError.invalidJSON
     }
 
-    var current = try readPlist(from: plistURL)
+    // Build a reverse-lookup: key → source
+    var keyToSource: [String: PlistSource] = [:]
+    for source in sources {
+        for key in source.exportableKeys {
+            keyToSource[key] = source
+        }
+    }
 
+    // Group the incoming key/value pairs by their target plist
+    var plistUpdates: [URL: [String: Any]] = [:]
     var importedCount = 0
     var skippedCount = 0
 
     for (key, jsonValue) in jsonDict {
-        guard exportableKeys.contains(key) else {
+        guard let source = keyToSource[key] else {
             print("⚠️  Skipping unknown/non-exportable key: \(key)")
             skippedCount += 1
             continue
         }
-        current[key] = jsonValueToPlist(jsonValue)
+        if plistUpdates[source.url] == nil {
+            plistUpdates[source.url] = try readPlist(from: source.url)
+        }
+        plistUpdates[source.url]![key] = jsonValueToPlist(jsonValue)
         importedCount += 1
     }
 
-    try writePlist(current, to: plistURL)
-
-    // Also sync via defaults(1) so cfprefsd picks up the changes immediately
-    let task = Process()
-    task.launchPath = "/usr/bin/defaults"
-    task.arguments = ["read", groupID]
-    task.standardOutput = FileHandle.nullDevice
-    task.standardError = FileHandle.nullDevice
-    try? task.run()
-    task.waitUntilExit()
-
-    print("✅ Imported \(importedCount) settings into group '\(groupID)'")
-    if skippedCount > 0 {
-        print("   ⚠️  Skipped \(skippedCount) unrecognised keys.")
+    // Write each modified plist back
+    for (url, dict) in plistUpdates {
+        try writePlist(dict, to: url)
     }
+
+    // Touch each source domain so cfprefsd picks up the changes immediately
+    for source in sources {
+        let task = Process()
+        task.launchPath = "/usr/bin/defaults"
+        task.arguments = ["read", source.label]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        try? task.run()
+        task.waitUntilExit()
+    }
+
+    print("✅ Imported \(importedCount) settings")
+    if skippedCount > 0 { print("   ⚠️  Skipped \(skippedCount) unrecognised keys.") }
     print("   Restart Strongbox to apply all changes.")
 }
 
 func listPrefs() throws {
-    guard let (plistURL, groupID) = locatePlist() else {
-        throw StrongboxPrefsError.plistNotFound
-    }
+    let sources = resolveSources()
+    guard !sources.isEmpty else { throw StrongboxPrefsError.plistNotFound }
 
-    let all = try readPlist(from: plistURL)
-
-    print("Strongbox macOS Preferences  [\(groupID)]")
-    print(String(repeating: "─", count: 60))
-
-    let sorted = exportableKeys.sorted()
-    for key in sorted {
-        if let value = all[key] {
-            print("  \(key) = \(value)")
+    for source in sources {
+        let all = try readPlist(from: source.url)
+        print("\nStrongbox Preferences  [\(source.label)]")
+        print(String(repeating: "─", count: 60))
+        for key in source.exportableKeys.sorted() {
+            if let value = all[key] {
+                print("  \(key) = \(value)")
+            }
         }
+        print(String(repeating: "─", count: 60))
     }
-    print(String(repeating: "─", count: 60))
 }
 
 // MARK: – Errors
@@ -301,18 +416,23 @@ enum StrongboxPrefsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .plistNotFound:
+            let groupPaths = knownGroupIDs.map {
+                "  ~/Library/Group Containers/\($0)/Library/Preferences/\($0).plist"
+            }.joined(separator: "\n")
+            let stdPaths = knownBundleIDs.map {
+                "  ~/Library/Containers/\($0)/Data/Library/Preferences/\($0).plist"
+            }.joined(separator: "\n")
             return """
-            Could not find the Strongbox preferences plist.
-            Searched in:
-            \(knownGroupIDs.map { "  ~/Library/Group Containers/\($0)/Library/Preferences/\($0).plist" }.joined(separator: "\n"))
-            Make sure Strongbox has been run at least once.
+            Could not find any Strongbox preferences plist.
+            Searched (App Group):
+            \(groupPaths)
+            Searched (Standard):
+            \(stdPaths)
+            Make sure Strongbox has been launched at least once.
             """
-        case .invalidPlist:
-            return "The plist file could not be parsed."
-        case .invalidJSON:
-            return "The input file is not valid JSON."
-        case .missingArgument(let msg):
-            return msg
+        case .invalidPlist:   return "The plist file could not be parsed."
+        case .invalidJSON:    return "The input file is not valid JSON."
+        case .missingArgument(let msg): return msg
         }
     }
 }
@@ -324,16 +444,18 @@ func printUsage() {
     strongbox-prefs – Export / Import Strongbox macOS Preferences
 
     USAGE:
-      strongbox-prefs export [output.json]   Export user settings to JSON
+      strongbox-prefs export [output.json]   Export all user settings to JSON
       strongbox-prefs import <input.json>    Import user settings from JSON
       strongbox-prefs list                   Show current exportable settings
 
     NOTES:
-      • Only user-configurable settings are included (no license data,
-        no biometric cache, no CloudKit tokens, no database list).
+      • Settings from both the App Group plist and the standard sandboxed-app
+        plist (keyboard shortcuts) are captured in a single JSON file.
+      • Only user-configurable settings are included: no license data,
+        no biometric cache, no CloudKit tokens, no database list.
       • After importing, restart Strongbox for all settings to take effect.
-      • Binary plist values (Data, Date) are preserved through a typed JSON
-        wrapper so the round-trip is lossless.
+      • Binary plist values (Data, Date) are round-tripped losslessly via a
+        typed JSON wrapper ({ "__type": "data"|"date", "value": "…" }).
     """)
 }
 
@@ -352,9 +474,7 @@ do {
         try listPrefs()
     default:
         printUsage()
-        if args.first != nil && args.first != "--help" && args.first != "-h" {
-            exit(1)
-        }
+        if args.first != nil && args.first != "--help" && args.first != "-h" { exit(1) }
     }
 } catch {
     fputs("🔴 Error: \(error.localizedDescription)\n", stderr)
