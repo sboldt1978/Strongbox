@@ -13,6 +13,7 @@
 #import "Utils.h"
 
 #import "BiometricIdHelper.h"
+#import "MacCompositeKeyDeterminer.h"
 #import "SafeStorageProviderFactory.h"
 #import "AboutViewController.h"
 #import "ClipboardManager.h"
@@ -753,10 +754,30 @@ const NSInteger kTopLevelMenuItemTagView = 1113;
     }
     
     [self.systemTrayNewMenu addItem:NSMenuItem.separatorItem];
-    
+
+    BOOL anyLockedWithBio = NO;
+    for ( MacDatabasePreferences* database in MacDatabasePreferences.allDatabases ) {
+        if ( ![DatabasesCollection.shared isUnlockedWithUuid:database.uuid] &&
+             [MacCompositeKeyDeterminer bioOrWatchUnlockIsPossible:database isAutoFillOpen:NO] ) {
+            anyLockedWithBio = YES;
+            break;
+        }
+    }
+
+    if ( anyLockedWithBio ) {
+        NSMenuItem* unlockAll = [self.systemTrayNewMenu addItemWithTitle:NSLocalizedString(@"system_tray_menu_item_unlock_all", @"Unlock All")
+                                                                  action:@selector(onSystemTrayUnlockAll:)
+                                                           keyEquivalent:@"u"];
+        unlockAll.image = [NSImage imageWithSystemSymbolName:@"lock.open" accessibilityDescription:nil];
+    }
+
     [self.systemTrayNewMenu addItemWithTitle:NSLocalizedString(@"system_tray_menu_item_lock_all", @"Lock All") action:@selector(onSystemTrayLockAll:) keyEquivalent:@"l"];
     [self.systemTrayNewMenu addItemWithTitle:NSLocalizedString(@"generic_settings", @"Settings") action:@selector(onTrayShowAppSettings:) keyEquivalent:@","];
     [self.systemTrayNewMenu addItemWithTitle:NSLocalizedString(@"system_tray_menu_item_quit", @"Quit Strongbox") action:@selector(onStrongboxQuitFromTray:) keyEquivalent:@"q"];
+}
+
+- (void)onSystemTrayUnlockAll:(id)sender {
+    [DatabasesCollection.shared unlockAllWithBiometrics];
 }
 
 - (void)onSystemTrayLockAll:(id)sender {

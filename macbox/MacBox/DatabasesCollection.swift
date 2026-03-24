@@ -397,6 +397,67 @@ class DatabasesCollection: NSObject {
         }
     }
 
+    // MARK: – Unlock All with a single biometric scan (issue #1)
+
+    /// Finds every locked database that has Touch ID / Apple Watch unlock configured,
+    /// performs exactly ONE biometric authentication, and then unlocks all eligible
+    /// databases without prompting again.
+    ///
+    /// The Keychain items that store the convenience passwords are protected with
+    /// kSecAttrAccessibleWhenUnlockedThisDeviceOnly but NOT with kSecAccessControlBiometryAny,
+    /// so a single successful LAContext.evaluatePolicy is sufficient to authorise
+    /// all subsequent Keychain reads in the same run loop.
+    @objc public func unlockAllWithBiometrics() {
+        let eligible = MacDatabasePreferences.allDatabases
+            .filter { !isUnlocked(uuid: $0.uuid) }
+            .filter { MacCompositeKeyDeterminer.bioOrWatchUnlockIsPossible($0, isAutoFillOpen: false) }
+
+        guard let first = eligible.first else { return }
+
+        // One biometric prompt for all databases
+        let reason = String(format: NSLocalizedString("unlock_all_touch_id_reason",
+                                                      value: "Unlock %lu database(s)",
+                                                      comment: "Touch ID reason shown when unlocking all databases at once"),
+                            eligible.count)
+
+        BiometricIdHelper.sharedInstance().authorize(nil,
+                                                     reason: reason,
+                                                     database: first) { [weak self] success, _ in
+            guard success else { return }
+
+            DispatchQueue.main.async {
+                self?.unlockDatabasesAfterSuccessfulBiometricAuth(eligible)
+            }
+        }
+    }
+
+    private func unlockDatabasesAfterSuccessfulBiometricAuth(_ databases: [MacDatabasePreferences]) {
+        for database in databases {
+            let det = MacCompositeKeyDeterminer(database: database,
+                                               isNativeAutoFillAppExtensionOpen: false,
+                                               isAutoFillQuickTypeOpen: false,
+                                               onDemandUiProvider: DatabasesCollection.getDbManagerPanelVc)
+
+            det.getCkfsAfterSuccessfulBiometricAuth(database.keyFileBookmark,
+                                                    yubiKeyConfiguration: database.yubiKeyConfiguration,
+                                                    keyFileFallbackUrl: nil)
+            { [weak self] result, ckfs, fromConvenience, _ in
+                guard result == .success, let ckfs else { return }
+
+                self?.unlockModelFromLocalWorkingCopy(database: database,
+                                                      ckfs: ckfs,
+                                                      fromConvenience: fromConvenience)
+                { [weak self] unlockResult, _, _ in
+                    guard unlockResult == .success else { return }
+                    self?.sync(uuid: database.uuid,
+                               allowInteractive: false,
+                               suppressErrorAlerts: true,
+                               ckfsForConflict: ckfs)
+                }
+            }
+        }
+    }
+
     @objc func forceLock(uuid: String) {
         unlockedCollection.removeObject(forKey: uuid as NSString)
         stopPollForRemoteChangesTimer(uuid: uuid)
