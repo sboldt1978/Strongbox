@@ -60,6 +60,7 @@ let exportableKeys: Set<String> = [
     "screenCaptureBlocked",
     "showCopyFieldButton",
     "showDatabasesManagerOnCloseAllWindows",
+    "showDatabasesManagerOnAppLaunch",
     "showOfflineOptionsOnLocalDeviceDatabases",
     "showPasswordImmediatelyInOutline",
     "showSystemTrayIcon",
@@ -68,6 +69,7 @@ let exportableKeys: Set<String> = [
     "hideDockIconOnAllMinimized",
     "closeManagerOnLaunch",
     "autoLaunchSingleDatabase",
+    "autoCommitScannedTotp",
 
     // Auto-Lock
     "autoLockTimeout",
@@ -84,7 +86,7 @@ let exportableKeys: Set<String> = [
     "addLegacySupplementaryTotpCustomFields",
     "addOtpAuthUrl",
     "twoFactorEasyReadSeparator",
-    "twoFactorHideCountdownDigits2",
+    "twoFactorHideCountdownDigits",   // NOTE: macOS uses this key; iOS uses "twoFactorHideCountdownDigits2"
 
     // FavIcons / AutoFill
     "favIconDownloadOptions",
@@ -104,14 +106,20 @@ let exportableKeys: Set<String> = [
     "wiFiSyncOn",
     "runSshAgent",
     "sshAgentApprovalDefaultExpiryMinutes",
+    "sshAgentRequestDatabaseUnlockAllowed",
+    "sshAgentPreventRapidRepeatedUnlockRequests",
     "runBrowserAutoFillProxyServer-Prod-22-Oct-2022",
 
-    // App Lock
+    // App Lock / Access Control
     "appLockMode2.0",
     "appLockDelay2.0",
     "appLockAppliesToPreferences",
     "deleteDataAfterFailedUnlockCount",
     "databasesAreAlwaysReadOnly",
+    "disableExport",
+    "disablePrinting",
+    "disableCopyTo",
+    "disableMakeVisibleInFiles",
 
     // Duplicate / Export
     "duplicateItemPreserveTimestamp",
@@ -126,6 +134,9 @@ let exportableKeys: Set<String> = [
     "largeTextViewFloatOnTop",
     "systemMenuClickAction",
     "showHiddenDatabases",
+
+    // Enterprise / Organisation
+    "businessOrganisationName",
 ]
 
 // MARK: – Plist Helpers
