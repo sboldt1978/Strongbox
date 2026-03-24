@@ -335,9 +335,41 @@ func exportPrefs(to outputPath: String?) throws {
     print("   → \(destination.path)")
 }
 
-func importPrefs(from inputPath: String) throws {
+/// Writes a timestamped backup of all currently exported settings to the current working directory.
+/// Returns the URL of the written backup file.
+@discardableResult
+func backupPrefs(sources: [PlistSource]) throws -> URL {
+    var snapshot: [String: Any] = [:]
+
+    for source in sources {
+        let all = try readPlist(from: source.url)
+        for key in source.exportableKeys {
+            if let value = all[key] {
+                snapshot[key] = plistValueToJSON(value)
+            }
+        }
+    }
+
+    let json = try JSONSerialization.data(withJSONObject: snapshot, options: [.prettyPrinted, .sortedKeys])
+
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withFullDate, .withTime, .withColonSeparatorInTime]
+    let timestamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+    let name = "strongbox-prefs-backup-\(timestamp).json"
+    let dest = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appending(path: name, directoryHint: .notDirectory)
+
+    try json.write(to: dest, options: .atomic)
+    return dest
+}
+
+func importPrefs(from inputPath: String, merge: Bool) throws {
     let sources = resolveSources()
     guard !sources.isEmpty else { throw StrongboxPrefsError.plistNotFound }
+
+    // 1. Backup current state before any changes
+    let backupURL = try backupPrefs(sources: sources)
+    print("📦 Backup written to: \(backupURL.lastPathComponent)")
 
     let jsonData = try Data(contentsOf: URL(fileURLWithPath: inputPath))
     guard let jsonDict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
@@ -352,8 +384,21 @@ func importPrefs(from inputPath: String) throws {
         }
     }
 
-    // Group the incoming key/value pairs by their target plist
+    // 2. In replace mode (default): strip all exportable keys from each plist first,
+    //    producing a clean baseline before writing the incoming values.
+    //    In --merge mode: keep existing values and only overwrite keys present in the file.
     var plistUpdates: [URL: [String: Any]] = [:]
+    for source in sources {
+        var dict = try readPlist(from: source.url)
+        if !merge {
+            for key in source.exportableKeys {
+                dict.removeValue(forKey: key)
+            }
+        }
+        plistUpdates[source.url] = dict
+    }
+
+    // 3. Write incoming key/value pairs into the (possibly stripped) plists
     var importedCount = 0
     var skippedCount = 0
 
@@ -363,19 +408,16 @@ func importPrefs(from inputPath: String) throws {
             skippedCount += 1
             continue
         }
-        if plistUpdates[source.url] == nil {
-            plistUpdates[source.url] = try readPlist(from: source.url)
-        }
         plistUpdates[source.url]![key] = jsonValueToPlist(jsonValue)
         importedCount += 1
     }
 
-    // Write each modified plist back
+    // 4. Write each modified plist back
     for (url, dict) in plistUpdates {
         try writePlist(dict, to: url)
     }
 
-    // Touch each source domain so cfprefsd picks up the changes immediately
+    // 5. Touch each source domain so cfprefsd picks up the changes immediately
     for source in sources {
         let task = Process()
         task.launchPath = "/usr/bin/defaults"
@@ -386,7 +428,8 @@ func importPrefs(from inputPath: String) throws {
         task.waitUntilExit()
     }
 
-    print("✅ Imported \(importedCount) settings")
+    let mode = merge ? "merged" : "replaced (clean baseline)"
+    print("✅ Imported \(importedCount) settings [\(mode)]")
     if skippedCount > 0 { print("   ⚠️  Skipped \(skippedCount) unrecognised keys.") }
     print("   Restart Strongbox to apply all changes.")
 }
@@ -444,9 +487,17 @@ func printUsage() {
     strongbox-prefs – Export / Import Strongbox macOS Preferences
 
     USAGE:
-      strongbox-prefs export [output.json]   Export all user settings to JSON
-      strongbox-prefs import <input.json>    Import user settings from JSON
-      strongbox-prefs list                   Show current exportable settings
+      strongbox-prefs export [output.json]          Export all user settings to JSON
+      strongbox-prefs import <input.json> [--merge] Import user settings from JSON
+      strongbox-prefs list                          Show current exportable settings
+
+    IMPORT MODES:
+      Default (replace):  All exportable settings are wiped first (clean baseline),
+                          then the values from the file are written.
+      --merge:            Existing settings are kept; only keys present in the file
+                          are overwritten.
+      In both modes a timestamped backup is written to the current directory before
+      any changes are made.
 
     NOTES:
       • Settings from both the App Group plist and the standard sandboxed-app
@@ -466,10 +517,12 @@ do {
     case "export":
         try exportPrefs(to: args.dropFirst().first)
     case "import":
-        guard let path = args.dropFirst().first else {
-            throw StrongboxPrefsError.missingArgument("Usage: strongbox-prefs import <input.json>")
+        let importArgs = args.dropFirst()
+        guard let path = importArgs.first(where: { !$0.hasPrefix("--") }) else {
+            throw StrongboxPrefsError.missingArgument("Usage: strongbox-prefs import <input.json> [--merge]")
         }
-        try importPrefs(from: path)
+        let merge = importArgs.contains("--merge")
+        try importPrefs(from: path, merge: merge)
     case "list":
         try listPrefs()
     default:
